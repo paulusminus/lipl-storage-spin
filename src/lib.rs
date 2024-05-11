@@ -3,7 +3,8 @@ use std::sync::OnceLock;
 use crate::api::Api;
 use model::{
     basic_authentication::{unauthenticated, Authentication},
-    error::Error, Uuid,
+    error::Error,
+    Uuid,
 };
 use spin_sdk::{
     http::{IntoResponse, Request, Response},
@@ -22,7 +23,6 @@ fn request_id() -> &'static Uuid {
     static REQUEST_ID: OnceLock<Uuid> = OnceLock::new();
     REQUEST_ID.get_or_init(Uuid::default)
 }
-
 
 /// A simple Spin HTTP component.
 #[http_component]
