@@ -23,8 +23,7 @@ rusqlite = { version = "0.31" }
 [workspace.package]
 authors = ["paulusminus <info@paulmin.nl>"]
 edition = "2021"
-version = "0.6.8"
-
+version = "0.7.0"
 
 [workspace]
 members = [ "model" ]
