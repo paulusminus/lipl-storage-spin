@@ -1,11 +1,12 @@
 use std::fmt::Display;
 
-use crate::request_id;
+use crate::{now, request_id};
 
 pub fn db_connection_established() {
     println!(
-        "{}: connection with default sqlite db established",
-        request_id()
+        "{}: connection with default sqlite db established after {} milliseconds",
+        request_id(),
+        now().elapsed().as_millis(),
     );
 }
 
@@ -14,7 +15,12 @@ pub fn foreign_keys() {
 }
 
 pub fn request_received(path: impl Display) {
-    println!("{}: path: {}", request_id(), path);
+    println!(
+        "{}: received request {} after {} milliseconds",
+        request_id(),
+        path,
+        now().elapsed().as_millis()
+    );
 }
 
 pub fn delete_member_failure(id: impl Display) {
