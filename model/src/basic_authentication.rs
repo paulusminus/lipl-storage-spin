@@ -1,0 +1,69 @@
+use std::str::from_utf8;
+
+use base64::{prelude::BASE64_STANDARD, Engine};
+use spin_sdk::http::{IntoResponse, Response, ResponseBuilder};
+
+use crate::{error::AuthenticationError, Error, Result};
+
+pub fn unauthenticated() -> Response {
+    ResponseBuilder::new(401)
+        .header("WWW-Authenticate", "Basic realm=\"Lipl Api\"")
+        .build()
+        .into_response()
+}
+
+#[derive(Debug)]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
+}
+
+impl std::str::FromStr for Credentials {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let decoded = BASE64_STANDARD
+            .decode(s)
+            .map_err(AuthenticationError::from)?;
+        let decoded_s = from_utf8(decoded.as_slice())?;
+        let mut splitted = decoded_s.split(':');
+        let username = splitted.next().ok_or(AuthenticationError::Username)?;
+        let password = splitted.next().ok_or(AuthenticationError::Password)?;
+        Ok(Self {
+            username: username.to_owned(),
+            password: password.to_owned(),
+        })
+    }
+}
+
+pub enum Authentication {
+    Basic(Credentials),
+}
+
+impl Authentication {
+    pub fn is_valid_user(&self, username: String, password: String) -> bool {
+        match self {
+            Self::Basic(basic) => basic.username == username && basic.password == password,
+        }
+    }
+}
+
+impl std::fmt::Display for Authentication {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Basic(basic) => write!(f, "Basic {} {}", basic.username, basic.password),
+        }
+    }
+}
+
+impl std::str::FromStr for Authentication {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if let Some(stripped) = s.strip_prefix("Basic ") {
+            stripped.parse::<Credentials>().map(Authentication::Basic)
+        } else {
+            Err(Error::from(AuthenticationError::AuthenticationHeader))
+        }
+    }
+}
