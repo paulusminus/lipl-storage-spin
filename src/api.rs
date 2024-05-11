@@ -37,7 +37,8 @@ impl Default for Api {
             PUT "/lipl/api/v1/playlist/:id" => handler::update_playlist,
             DELETE "/lipl/api/v1/playlist/:id" => handler::delete_playlist,
             GET "/lipl/api/v1/db" => handler::get_db,
-            POST "/lipl/api/v1/db" => handler::replace_db
+            POST "/lipl/api/v1/db" => handler::replace_db,
+            GET "/lipl/api/v1/uuid/:id" => handler::get_uuid
         );
         Self { router }
     }

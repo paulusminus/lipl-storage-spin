@@ -67,3 +67,34 @@ impl std::str::FromStr for Authentication {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::env::var;
+
+    use base64::{engine::general_purpose::STANDARD, Engine};
+
+    use crate::basic_authentication::Authentication;
+
+    #[test]
+    fn calculate_authorization_header() {
+        let username = var("LIPL_USERNAME").unwrap();
+        let password = var("LIPL_PASSWORD").unwrap();
+
+        let combined = format!("{}:{}", username, password);
+        println!("{combined}");
+        let encoded = STANDARD.encode(combined);
+        println!("{encoded}");
+
+        let header = format!("Basic {}", encoded);
+
+        let credentials = header.parse::<Authentication>().unwrap();
+
+        match credentials {
+            Authentication::Basic(credentials) => {
+                println!("{}", &credentials.username);
+                println!("{}", &credentials.password);
+            }
+        }
+    }
+}

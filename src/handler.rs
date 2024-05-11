@@ -1,9 +1,10 @@
+use model::error::Error;
 use spin_sdk::http::{IntoResponse, Params, Request, Response};
 
 use model::response::{
     bad_request, created, if_none_match, no_content, not_found, not_modified, JsonResponse,
 };
-use model::{Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, TryFromJson};
+use model::{Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, TryFromJson, Uuid};
 
 use crate::{persistence::Connection, Result};
 
@@ -142,4 +143,11 @@ pub(crate) fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     let playlists = connection.get_playlist_list()?;
     let db = Db { lyrics, playlists };
     Ok(JsonResponse::new(db, req))
+}
+
+pub(crate) fn get_uuid(req: Request, params: Params) -> Result<impl IntoResponse> {
+    let uuid_str = params.get("id").ok_or(Error::NotFound)?;
+    let uuid = Uuid::from_uuid_str(uuid_str)?;
+
+    Ok(JsonResponse::new(uuid.to_string(), req))
 }

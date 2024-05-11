@@ -185,6 +185,14 @@ pub struct Uuid {
     inner: uuid::Uuid,
 }
 
+impl Uuid {
+    pub fn from_uuid_str(s: &str) -> Result<Self> {
+        s.parse::<uuid::Uuid>()
+            .err_into()
+            .map(|uuid| Self { inner: uuid })
+    }
+}
+
 impl FromStr for Uuid {
     type Err = Error;
 
