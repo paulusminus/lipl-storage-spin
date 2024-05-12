@@ -12,8 +12,8 @@ where
 impl<E: From<Error>> DbConnection<E> {
     pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self, E> {
         let connection = spin_sdk::sqlite::Connection::open_default()?;
-        if let Some(m) = migrations {
-            connection.execute(m, &[])?;
+        if migrations.is_some() {
+            unimplemented!();
         }
         Ok(Self {
             inner: connection,

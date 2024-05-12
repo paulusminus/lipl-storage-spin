@@ -26,9 +26,9 @@ impl Connection {
         self.0.execute(sql::SQL_COMMIT, &[]).map(|_| ())
     }
 
-    pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
+    pub(crate) fn get_lyric_list<'a>(&'a self) -> Result<Vec<Lyric>> {
         self.0
-            .query(sql::SQL_GET_LYRIC_LIST, &[], |r| Lyric::try_from(r))
+            .query(sql::SQL_GET_LYRIC_LIST, &[], |row| Lyric::try_from(row))
     }
 
     pub(crate) fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
@@ -37,7 +37,7 @@ impl Connection {
     {
         let params = vec![Value::Text(id.to_string())];
         self.0
-            .query(sql::SQL_GET_LYRIC, &params, |r| Lyric::try_from(r))
+            .query(sql::SQL_GET_LYRIC, &params, |row| Lyric::try_from(row))
             .map(|result| result.first().cloned())
             .err_into()
     }

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use rusqlite::{Error, Statement};
+use rusqlite::{params_from_iter, Error};
 use spin_sdk::sqlite::{QueryResult, Row, RowResult, Value};
 
 pub struct DbConnection<E>
@@ -23,22 +23,22 @@ impl<E: From<Error>> DbConnection<E> {
         })
     }
 
-    pub(crate) fn query<F, S, T>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
+    pub(crate) fn query<S, T, F>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
     where
         F: Fn(Row) -> Result<T, E>,
         S: AsRef<str>,
     {
-        let mut statement = rusqlite_statement(&self.inner, sql, parameters)?;
-        let columns = statement
+        let mut prepared = self.inner.prepare(sql.as_ref())?;
+        let columns = prepared
             .column_names()
             .into_iter()
             .map(String::from)
             .collect::<Vec<_>>();
+        let mut rows = prepared.query(params_from_iter(rusqlite_parameters(parameters)))?;
         let mut query_result = QueryResult {
             columns: columns.clone(),
             rows: vec![],
         };
-        let mut rows = statement.raw_query();
         while let Some(row) = rows.next()? {
             let mut row_result = RowResult { values: vec![] };
             for column in columns.iter() {
@@ -54,40 +54,21 @@ impl<E: From<Error>> DbConnection<E> {
     where
         S: AsRef<str>,
     {
-        let mut statement = rusqlite_statement(&self.inner, sql, parameters)?;
-        let result = statement.raw_execute()?;
-        Ok(result.try_into().unwrap())
+        let count = self.inner.execute(sql.as_ref(), params_from_iter(rusqlite_parameters(parameters)))?;
+        Ok(count.try_into().unwrap())
     }
 }
 
-fn rusqlite_statement<'a, S: AsRef<str>, E: From<Error>>(
-    connection: &'a rusqlite::Connection,
-    sql: S,
-    parameters: &[Value],
-) -> Result<Statement<'a>, E> {
-    let mut statement = connection.prepare(sql.as_ref())?;
-    for (i, parameter) in parameters
-        .iter()
-        .enumerate()
-        .map(|(i, value)| (i + 1, value))
-    {
-        match parameter {
-            Value::Blob(blob) => {
-                statement.raw_bind_parameter(i, blob)?;
-            }
-            Value::Integer(integer) => {
-                statement.raw_bind_parameter(i, integer)?;
-            }
-            Value::Null => {
-                statement.raw_bind_parameter(i, Option::<String>::None)?;
-            }
-            Value::Real(float) => {
-                statement.raw_bind_parameter(i, float)?;
-            }
-            Value::Text(s) => {
-                statement.raw_bind_parameter(i, s)?;
-            }
-        };
+fn rusqlite_parameter(parameter: &Value) -> rusqlite::types::Value {
+    match parameter {
+        Value::Blob(blob) => rusqlite::types::Value::Blob(blob.clone()),
+        Value::Integer(integer) => rusqlite::types::Value::Integer(*integer),
+        Value::Null => rusqlite::types::Value::Null,
+        Value::Real(real) => rusqlite::types::Value::Real(*real),
+        Value::Text(text) => rusqlite::types::Value::Text(text.clone()),
     }
-    Ok(statement)
+}
+
+fn rusqlite_parameters(parameters: &[Value]) -> Vec<rusqlite::types::Value> {
+    parameters.into_iter().map(rusqlite_parameter).collect()
 }

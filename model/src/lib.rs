@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use error::ErrInto;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+use spin_sdk::sqlite::{QueryResult, Row};
 
 use crate::{error::Error, parts::Parts};
 
@@ -19,7 +20,7 @@ pub mod parts;
 pub mod response;
 
 pub trait TryFromJson {
-    fn try_from_json(slice: &[u8]) -> Result<Self>
+    fn try_from_json<U: AsRef<[u8]>>(slice: U) -> Result<Self>
     where
         Self: Sized;
 }
@@ -76,11 +77,11 @@ impl Lyric {
 }
 
 impl<T: DeserializeOwned> TryFromJson for T {
-    fn try_from_json(slice: &[u8]) -> Result<T>
+    fn try_from_json<U: AsRef<[u8]>>(slice: U) -> Result<T>
     where
         Self: Sized,
     {
-        serde_json::from_slice(slice).err_into()
+        serde_json::from_slice(slice.as_ref()).err_into()
     }
 }
 
@@ -96,10 +97,28 @@ fn to_parts(s: &str) -> Result<Vec<Vec<String>>> {
     s.parse::<Parts>().err_into().map(|p| p.parts())
 }
 
-impl<'a> TryFrom<spin_sdk::sqlite::Row<'a>> for Lyric {
+pub struct List<T> {
+    pub inner: Vec<T>,
+}
+
+impl<'a, T> TryFrom<&'a QueryResult> for List<T>
+where
+    T: TryFrom<Row<'a>, Error = Error>,
+{
+    type Error = Error;
+    fn try_from(query_result: &'a QueryResult) -> std::prelude::v1::Result<Self, Self::Error> {
+        let list = query_result
+            .rows()
+            .map(T::try_from)
+            .collect::<Result<Vec<T>>>()?;
+        Ok(Self { inner: list })
+    }
+}
+
+impl TryFrom<spin_sdk::sqlite::Row<'_>> for Lyric {
     type Error = Error;
 
-    fn try_from(row: spin_sdk::sqlite::Row<'a>) -> Result<Self> {
+    fn try_from(row: spin_sdk::sqlite::Row<'_>) -> Result<Self> {
         Ok(Self {
             id: row.column("id").map(Into::into)?,
             title: row.column("title").map(Into::into)?,
@@ -221,6 +240,10 @@ impl std::fmt::Display for Uuid {
 
 #[cfg(test)]
 mod test {
+    use spin_sdk::sqlite::{QueryResult, RowResult, Value};
+
+    use crate::List;
+
     const UUID: super::Uuid = super::Uuid {
         inner: uuid::uuid!("71795c73-3cdc-49f1-847e-93193232e6c2"),
     };
@@ -246,5 +269,46 @@ mod test {
     fn deserialization() {
         let uuid = serde_json::from_str::<super::Uuid>(UUID_JSON).unwrap();
         assert_eq!(uuid, UUID);
+    }
+
+    #[test]
+    fn list_from_query_result() {
+        let query_result = QueryResult {
+            columns: vec![
+                "id".to_owned(),
+                "title".to_owned(),
+                "parts".to_owned(),
+                "created".to_owned(),
+                "modified".to_owned(),
+                "etag".to_owned(),
+            ],
+            rows: vec![
+                RowResult {
+                    values: vec![
+                        Value::Text("PKc2FHaQoVbJfjsPHwbUX4".to_owned()),
+                        Value::Text("Hallo allemaal".to_owned()),
+                        Value::Text("Hallo allemaal\nWat fijn dat u bent".to_owned()),
+                        Value::Text("2024-05-11T06:38:11.759Z".to_owned()),
+                        Value::Text("2024-05-11T06:38:11.759Z".to_owned()),
+                        Value::Text("U5jCFGBECj34LSqvZKRz92".to_owned()),
+                    ],
+                },
+                RowResult {
+                    values: vec![
+                        Value::Text("B3aC2EHKXDGZcjNvvg4Rs5".to_owned()),
+                        Value::Text("Sofietje".to_owned()),
+                        Value::Text("Zij dronk ranja met een rietje, mijn sofietje\nOp een amsterdams terras".to_owned()),
+                        Value::Text("2024-05-11T06:39:11.759Z".to_owned()),
+                        Value::Text("2024-05-11T06:39:11.759Z".to_owned()),
+                        Value::Text("UBBrNrdTUXT9nMjBrt5dGu".to_owned()),
+                    ],
+                },
+            ],
+        };
+        let list = List::<super::Lyric>::try_from(&query_result).unwrap();
+
+        for lyric in list.inner {
+            println!("{}", lyric.title);
+        }
     }
 }
