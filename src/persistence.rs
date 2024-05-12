@@ -4,11 +4,11 @@ use std::fmt::Display;
 use crate::{message, Error, Result};
 use model::{error::ErrInto, parts::Parts, Db, Lyric, Playlist, Uuid};
 
-pub struct Connection(crate::connection::DbConnection<Error>);
+pub struct Connection(connection::DbConnection<Error>);
 
 impl Connection {
     pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
-        let connection = crate::connection::DbConnection::try_open_default(migrations).map(Self)?;
+        let connection = connection::DbConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
         connection.0.execute("PRAGMA foreign_keys = ON", &[])?;
         Ok(connection)

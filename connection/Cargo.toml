@@ -1,0 +1,11 @@
+[package]
+name = "connection"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+spin-sdk = "3.0.1"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+rusqlite = { version = "0.31", features = ["serde_json"] }

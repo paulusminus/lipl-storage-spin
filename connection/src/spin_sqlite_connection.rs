@@ -10,7 +10,7 @@ where
 }
 
 impl<E: From<Error>> DbConnection<E> {
-    pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self, E> {
+    pub fn try_open_default(migrations: Option<&'static str>) -> Result<Self, E> {
         let connection = spin_sdk::sqlite::Connection::open_default()?;
         if migrations.is_some() {
             unimplemented!();
@@ -21,7 +21,7 @@ impl<E: From<Error>> DbConnection<E> {
         })
     }
 
-    pub(crate) fn query<F, S, T>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
+    pub fn query<F, S, T>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
     where
         F: Fn(Row) -> Result<T, E>,
         S: AsRef<str>,
@@ -32,7 +32,7 @@ impl<E: From<Error>> DbConnection<E> {
             .and_then(|result| result.rows().map(f).collect())
     }
 
-    pub(crate) fn execute<S>(&self, sql: S, parameters: &[Value]) -> Result<i64, E>
+    pub fn execute<S>(&self, sql: S, parameters: &[Value]) -> Result<i64, E>
     where
         S: AsRef<str>,
     {

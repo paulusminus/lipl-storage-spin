@@ -118,6 +118,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "connection"
+version = "0.7.0"
+dependencies = [
+ "rusqlite",
+ "spin-sdk",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,6 +425,7 @@ dependencies = [
 name = "lipl-storage-spin"
 version = "0.7.0"
 dependencies = [
+ "connection",
  "model",
  "rusqlite",
  "spin-sdk",
