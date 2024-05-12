@@ -10,10 +10,6 @@ pub fn db_connection_established() {
     );
 }
 
-pub fn foreign_keys() {
-    println!("{}: setting foreign keys on succeeded", request_id());
-}
-
 pub fn request_received(path: impl Display) {
     println!(
         "{}: received request {} after {} milliseconds",

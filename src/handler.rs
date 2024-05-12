@@ -9,7 +9,7 @@ use model::{Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, TryFromJson, Uui
 use crate::{persistence::Connection, Result};
 
 pub(crate) fn get_lyric_list(req: Request, _: Params) -> Result<Response> {
-    let lyrics = Connection::try_open_default().and_then(|c| c.get_lyric_list())?;
+    let lyrics = Connection::try_open_default(None).and_then(|c| c.get_lyric_list())?;
     if Some(lyrics.etag()) == if_none_match(&req) {
         Ok(not_modified())
     } else {
@@ -22,7 +22,7 @@ pub(crate) fn get_lyric(req: Request, params: Params) -> Result<impl IntoRespons
         return Ok(not_found());
     };
 
-    match Connection::try_open_default().and_then(|c| c.get_lyric(id))? {
+    match Connection::try_open_default(None).and_then(|c| c.get_lyric(id))? {
         Some(lyric) => {
             if Some(lyric.etag()) == if_none_match(&req) {
                 Ok(not_modified())
@@ -38,7 +38,7 @@ pub(crate) fn insert_lyric(req: Request, _: Params) -> Result<impl IntoResponse>
     let Ok(lyric) = Lyric::try_from_json(req.body()) else {
         return Ok(bad_request());
     };
-    Connection::try_open_default()
+    Connection::try_open_default(None)
         .and_then(|c| c.insert_lyric(&lyric))
         .map(|_| created())
 }
@@ -55,7 +55,7 @@ pub(crate) fn update_lyric(req: Request, params: Params) -> Result<impl IntoResp
         lyric_post.title.clone(),
         lyric_post.parts.clone(),
     );
-    Connection::try_open_default().and_then(|c| c.update_lyric(&lyric))?;
+    Connection::try_open_default(None).and_then(|c| c.update_lyric(&lyric))?;
     Ok(no_content())
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn delete_lyric(_: Request, params: Params) -> Result<impl IntoRespon
     let Some(id) = params.get("id") else {
         return Ok(Response::new(400, ()));
     };
-    if Connection::try_open_default().and_then(|c| c.delete_lyric(id))? {
+    if Connection::try_open_default(None).and_then(|c| c.delete_lyric(id))? {
         Ok(no_content())
     } else {
         Ok(not_found())
@@ -71,7 +71,7 @@ pub(crate) fn delete_lyric(_: Request, params: Params) -> Result<impl IntoRespon
 }
 
 pub(crate) fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
-    let playlists = Connection::try_open_default().and_then(|c| c.get_playlist_list())?;
+    let playlists = Connection::try_open_default(None).and_then(|c| c.get_playlist_list())?;
     if Some(playlists.etag()) == if_none_match(&req) {
         Ok(not_modified())
     } else {
@@ -83,7 +83,7 @@ pub(crate) fn get_playlist(req: Request, params: Params) -> Result<impl IntoResp
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
-    match Connection::try_open_default().and_then(|c| c.get_playlist(id))? {
+    match Connection::try_open_default(None).and_then(|c| c.get_playlist(id))? {
         Some(playlist) => {
             if Some(playlist.etag()) == if_none_match(&req) {
                 Ok(not_modified())
@@ -99,7 +99,7 @@ pub(crate) fn insert_playlist(req: Request, _: Params) -> Result<impl IntoRespon
     let Ok(playlist) = Playlist::try_from_json(req.body()) else {
         return Ok(bad_request());
     };
-    Connection::try_open_default()
+    Connection::try_open_default(None)
         .and_then(|c| c.insert_playlist(&playlist))
         .map(|_| JsonResponse::new(playlist, req).into_response())
 }
@@ -116,7 +116,7 @@ pub(crate) fn update_playlist(req: Request, params: Params) -> Result<impl IntoR
         playlist_post.title.clone(),
         playlist_post.members.clone(),
     );
-    Connection::try_open_default()
+    Connection::try_open_default(None)
         .and_then(|c| c.update_playlist(&playlist))
         .map(|_| JsonResponse::new(playlist, req).into_response())
 }
@@ -125,20 +125,20 @@ pub(crate) fn delete_playlist(_: Request, params: Params) -> Result<impl IntoRes
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
-    Connection::try_open_default().and_then(|c| c.delete_playlist(id))?;
+    Connection::try_open_default(None).and_then(|c| c.delete_playlist(id))?;
     Ok(no_content())
 }
 
 pub(crate) fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     let db = Db::try_from_json(req.body())?;
-    let connection = Connection::try_open_default()?;
+    let connection = Connection::try_open_default(None)?;
     connection.replace_db(&db)?;
 
     Ok(no_content())
 }
 
 pub(crate) fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
-    let connection = Connection::try_open_default()?;
+    let connection = Connection::try_open_default(None)?;
     let lyrics = connection.get_lyric_list()?;
     let playlists = connection.get_playlist_list()?;
     let db = Db { lyrics, playlists };

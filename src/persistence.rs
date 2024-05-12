@@ -1,162 +1,34 @@
-#[cfg(not(target_family = "wasm"))]
-use spin_sdk::sqlite::{QueryResult, RowResult};
-use spin_sdk::sqlite::{Row, Value};
-use std::{fmt::Display, thread::sleep, time::Duration};
+use spin_sdk::sqlite::Value;
+use std::fmt::Display;
 
 use crate::{message, Error, Result};
 use model::{error::ErrInto, parts::Parts, Db, Lyric, Playlist, Uuid};
 
-pub enum DbConnection {
-    Spin(spin_sdk::sqlite::Connection),
-    #[allow(dead_code)]
-    #[cfg(not(target_family = "wasm"))]
-    Rusqlite(rusqlite::Connection),
-}
-
-pub struct Connection(DbConnection);
+pub struct Connection(crate::connection::DbConnection<Error>);
 
 impl Connection {
-    pub(crate) fn try_open_default() -> Result<Self> {
-        let connection = spin_sdk::sqlite::Connection::open_default()?;
+    pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
+        let connection = crate::connection::DbConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
-        connection.execute("PRAGMA foreign_keys = ON", &[])?;
-        message::foreign_keys();
-        Ok(Self(DbConnection::Spin(connection)))
-    }
-
-    #[allow(dead_code)]
-    #[cfg(not(target_family = "wasm"))]
-    pub(crate) fn open_test() -> Result<Self> {
-        let connection = rusqlite::Connection::open_in_memory()?;
-        connection.execute_batch(include_str!("../migrations.sql"))?;
-        connection.execute("PRAGMA foreign_keys = ON", [])?;
-        Ok(Self(DbConnection::Rusqlite(connection)))
-    }
-
-    fn query<F, S, T>(&self, statement: S, parameters: &[Value], f: F) -> Result<Vec<T>>
-    where
-        F: Fn(Row) -> Result<T>,
-        S: AsRef<str>,
-    {
-        match &self.0 {
-            DbConnection::Spin(connection) => connection
-                .execute(statement.as_ref(), parameters)
-                .err_into()
-                .and_then(|result| result.rows().map(f).collect()),
-            #[cfg(not(target_family = "wasm"))]
-            DbConnection::Rusqlite(connection) => {
-                let mut statement = connection.prepare(statement.as_ref())?;
-                for (i, parameter) in parameters
-                    .iter()
-                    .enumerate()
-                    .map(|(i, value)| (i + 1, value))
-                {
-                    match parameter {
-                        Value::Blob(blob) => {
-                            statement.raw_bind_parameter(i, blob)?;
-                        }
-                        Value::Integer(integer) => {
-                            statement.raw_bind_parameter(i, integer)?;
-                        }
-                        Value::Null => {
-                            statement.raw_bind_parameter(i, Option::<String>::None)?;
-                        }
-                        Value::Real(float) => {
-                            statement.raw_bind_parameter(i, float)?;
-                        }
-                        Value::Text(s) => {
-                            statement.raw_bind_parameter(i, s)?;
-                        }
-                    };
-                }
-                let columns = statement
-                    .column_names()
-                    .into_iter()
-                    .map(String::from)
-                    .collect::<Vec<_>>();
-                let mut query_result = QueryResult {
-                    columns: columns.clone(),
-                    rows: vec![],
-                };
-                let mut rows = statement.raw_query();
-                while let Some(row) = rows.next()? {
-                    let mut row_result = RowResult { values: vec![] };
-                    for column in columns.iter() {
-                        let field = row.get::<&str, String>(column)?;
-                        row_result.values.push(Value::Text(field));
-                    }
-                    query_result.rows.push(row_result);
-                }
-                query_result.rows().map(f).collect()
-            }
-        }
-    }
-
-    fn execute<S>(&self, statement: S, parameters: &[Value]) -> Result<i64>
-    where
-        S: AsRef<str>,
-    {
-        match &self.0 {
-            DbConnection::Spin(connection) => {
-                connection.execute(statement.as_ref(), parameters)?;
-                let changes = connection.execute(sql::SQL_GET_CHANGES, &[])?;
-                match changes.rows.first().cloned() {
-                    Some(row) => {
-                        // using i64 is crucial !!!
-                        let count = row
-                            .get::<i64>(0)
-                            .ok_or(Error::MissingColumn("changes ()"))?;
-                        Ok(count)
-                    }
-                    None => Ok(0),
-                }
-            }
-            #[cfg(not(target_family = "wasm"))]
-            DbConnection::Rusqlite(connection) => {
-                let mut statement = connection.prepare(statement.as_ref())?;
-                for (i, parameter) in parameters
-                    .iter()
-                    .enumerate()
-                    .map(|(i, value)| (i + 1, value))
-                {
-                    match parameter {
-                        Value::Blob(blob) => {
-                            statement.raw_bind_parameter(i, blob)?;
-                        }
-                        Value::Integer(integer) => {
-                            statement.raw_bind_parameter(i, integer)?;
-                        }
-                        Value::Null => {
-                            statement.raw_bind_parameter(i, Option::<String>::None)?;
-                        }
-                        Value::Real(float) => {
-                            statement.raw_bind_parameter(i, float)?;
-                        }
-                        Value::Text(s) => {
-                            statement.raw_bind_parameter(i, s)?;
-                        }
-                    };
-                }
-                let result = statement.raw_execute()?;
-                Ok(result.try_into().unwrap())
-            }
-        }
+        connection.0.execute("PRAGMA foreign_keys = ON", &[])?;
+        Ok(connection)
     }
 
     pub(crate) fn begin_transaction(&self) -> Result<()> {
-        self.execute(sql::SQL_BEGIN_TRANSACTION, &[]).map(|_| ())
+        self.0.execute(sql::SQL_BEGIN_TRANSACTION, &[]).map(|_| ())
     }
 
     pub(crate) fn roll_back(&self) -> Result<()> {
-        self.execute(sql::SQL_ROLLBACK, &[]).map(|_| ())
+        self.0.execute(sql::SQL_ROLLBACK, &[]).map(|_| ())
     }
 
     pub(crate) fn commit(&self) -> Result<()> {
-        self.execute(sql::SQL_COMMIT, &[]).map(|_| ())
+        self.0.execute(sql::SQL_COMMIT, &[]).map(|_| ())
     }
 
     pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
-        self.query(sql::SQL_GET_LYRIC_LIST, &[], |r| Lyric::try_from(r))
+        self.0
+            .query(sql::SQL_GET_LYRIC_LIST, &[], |r| Lyric::try_from(r))
     }
 
     pub(crate) fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
@@ -164,8 +36,10 @@ impl Connection {
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
-        self.query(sql::SQL_GET_LYRIC, &params, |r| Lyric::try_from(r))
+        self.0
+            .query(sql::SQL_GET_LYRIC, &params, |r| Lyric::try_from(r))
             .map(|result| result.first().cloned())
+            .err_into()
     }
 
     pub(crate) fn delete_lyric<D>(&self, id: D) -> Result<bool>
@@ -173,7 +47,10 @@ impl Connection {
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
-        self.execute(sql::SQL_DELETE_LYRIC, &params).map(|c| c > 0)
+        self.0
+            .execute(sql::SQL_DELETE_LYRIC, &params)
+            .map(|c| c > 0)
+            .err_into()
     }
 
     pub(crate) fn update_lyric(&self, lyric: &Lyric) -> Result<bool> {
@@ -182,7 +59,10 @@ impl Connection {
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
             Value::Text(lyric.id.clone()),
         ];
-        self.execute(sql::SQL_UPDATE_LYRIC, &params).map(|c| c > 0)
+        self.0
+            .execute(sql::SQL_UPDATE_LYRIC, &params)
+            .map(|c| c > 0)
+            .err_into()
     }
 
     pub(crate) fn insert_lyric(&self, lyric: &Lyric) -> Result<bool> {
@@ -192,27 +72,33 @@ impl Connection {
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
             Value::Text(Uuid::default().to_string()),
         ];
-        self.execute(sql::SQL_INSERT_LYRIC, &params).map(|c| c > 0)
+        self.0
+            .execute(sql::SQL_INSERT_LYRIC, &params)
+            .map(|c| c > 0)
+            .err_into()
     }
 
     fn get_playlist_members<D>(&self, playlist_id: D) -> Result<Vec<String>>
     where
         D: Display,
     {
-        self.query(
-            sql::SQL_GET_MEMBER_LYRICS,
-            &[Value::Text(playlist_id.to_string())],
-            |r| {
-                r.get::<&str>("lyric_id")
-                    .ok_or(Error::MissingLyricId)
-                    .map(String::from)
-            },
-        )
+        self.0
+            .query(
+                sql::SQL_GET_MEMBER_LYRICS,
+                &[Value::Text(playlist_id.to_string())],
+                |r| {
+                    r.get::<&str>("lyric_id")
+                        .ok_or(Error::MissingLyricId)
+                        .map(String::from)
+                },
+            )
+            .err_into()
     }
 
     pub(crate) fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
-        let mut playlists =
-            self.query(sql::SQL_GET_PLAYLIST_LIST, &[], |r| Playlist::try_from(r))?;
+        let mut playlists = self
+            .0
+            .query(sql::SQL_GET_PLAYLIST_LIST, &[], |r| Playlist::try_from(r))?;
 
         for playlist in playlists.iter_mut() {
             playlist.members = self.get_playlist_members(playlist.id.clone())?;
@@ -225,7 +111,9 @@ impl Connection {
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
-        let result = self.query(sql::SQL_GET_PLAYLIST, &params, |r| Playlist::try_from(r))?;
+        let result = self
+            .0
+            .query(sql::SQL_GET_PLAYLIST, &params, |r| Playlist::try_from(r))?;
         match result.first().cloned() {
             Some(mut playlist) => {
                 playlist.members = self.get_playlist_members(&playlist.id)?;
@@ -240,20 +128,24 @@ impl Connection {
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
-        self.execute(sql::SQL_DELETE_PLAYLIST, &params)
+        self.0
+            .execute(sql::SQL_DELETE_PLAYLIST, &params)
             .map(|count| count > 0)
+            .err_into()
     }
 
     pub(crate) fn delete_members<F>(&self, playlist_id: &String, onerror: F) -> Result<i64>
     where
         F: Fn() -> Result<()>,
     {
-        self.execute(sql::SQL_DELETE_MEMBER, &[Value::Text(playlist_id.clone())])
+        self.0
+            .execute(sql::SQL_DELETE_MEMBER, &[Value::Text(playlist_id.clone())])
             .inspect_err(|_| {
                 if onerror().is_err() {
                     message::delete_member_failure(playlist_id);
                 }
             })
+            .err_into()
     }
 
     pub(crate) fn insert_members<F>(
@@ -268,19 +160,20 @@ impl Connection {
         let mut i: i64 = 0;
         for lyric_id in lyric_ids {
             i += 1;
-            self.execute(
-                sql::SQL_INSERT_MEMBER,
-                &[
-                    Value::Text(playlist_id.clone()),
-                    Value::Text(lyric_id.clone()),
-                    Value::Integer(i),
-                ],
-            )
-            .inspect_err(|_| {
-                if onerror().is_err() {
-                    message::insert_member_failure(lyric_id, playlist_id);
-                }
-            })?;
+            self.0
+                .execute(
+                    sql::SQL_INSERT_MEMBER,
+                    &[
+                        Value::Text(playlist_id.clone()),
+                        Value::Text(lyric_id.clone()),
+                        Value::Integer(i),
+                    ],
+                )
+                .inspect_err(|_| {
+                    if onerror().is_err() {
+                        message::insert_member_failure(lyric_id, playlist_id);
+                    }
+                })?;
         }
         Ok(())
     }
@@ -290,19 +183,20 @@ impl Connection {
 
         self.delete_members(&playlist.id, || self.roll_back())?;
 
-        self.execute(
-            sql::SQL_UPDATE_PLAYLIST,
-            &[
-                Value::Text(playlist.title.clone()),
-                Value::Text(Uuid::default().to_string()),
-                Value::Text(playlist.id.clone()),
-            ],
-        )
-        .inspect_err(|_| {
-            if self.roll_back().is_err() {
-                message::update_playlist_failure(&playlist.id);
-            }
-        })?;
+        self.0
+            .execute(
+                sql::SQL_UPDATE_PLAYLIST,
+                &[
+                    Value::Text(playlist.title.clone()),
+                    Value::Text(Uuid::default().to_string()),
+                    Value::Text(playlist.id.clone()),
+                ],
+            )
+            .inspect_err(|_| {
+                if self.roll_back().is_err() {
+                    message::update_playlist_failure(&playlist.id);
+                }
+            })?;
 
         self.insert_members(&playlist.id, &playlist.members, || self.roll_back())?;
         self.commit()?;
@@ -313,19 +207,20 @@ impl Connection {
     pub(crate) fn insert_playlist(&self, playlist: &Playlist) -> Result<()> {
         self.begin_transaction()?;
 
-        self.execute(
-            sql::SQL_INSERT_PLAYLIST,
-            &[
-                Value::Text(playlist.id.clone()),
-                Value::Text(playlist.title.clone()),
-                Value::Text(Uuid::default().to_string()),
-            ],
-        )
-        .inspect_err(|error| {
-            if self.roll_back().is_err() {
-                message::insert_playlist_failure(error);
-            };
-        })?;
+        self.0
+            .execute(
+                sql::SQL_INSERT_PLAYLIST,
+                &[
+                    Value::Text(playlist.id.clone()),
+                    Value::Text(playlist.title.clone()),
+                    Value::Text(Uuid::default().to_string()),
+                ],
+            )
+            .inspect_err(|error| {
+                if self.roll_back().is_err() {
+                    message::insert_playlist_failure(error);
+                };
+            })?;
 
         self.insert_members(&playlist.id, &playlist.members, || self.roll_back())?;
         self.commit()?;
@@ -334,26 +229,24 @@ impl Connection {
     }
 
     pub(crate) fn replace_db(&self, db: &Db) -> Result<()> {
-        self.execute("DELETE FROM playlist", &[])?;
-        self.execute("DELETE FROM lyric", &[])?;
-        self.execute("DELETE FROM member", &[])?;
+        self.0.execute("DELETE FROM playlist", &[])?;
+        self.0.execute("DELETE FROM lyric", &[])?;
+        self.0.execute("DELETE FROM member", &[])?;
 
-        for lyric in db.lyrics.iter() {
-            self.insert_lyric(lyric)?;
-            sleep(Duration::from_millis(2));
-        }
-
-        for playlist in db.playlists.iter() {
-            self.insert_playlist(playlist)?;
-            sleep(Duration::from_millis(2));
-        }
+        db.lyrics
+            .iter()
+            .map(|lyric| self.insert_lyric(lyric))
+            .collect::<Result<Vec<_>>>()?;
+        db.playlists
+            .iter()
+            .map(|playlist| self.insert_playlist(playlist))
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(())
     }
 }
 
 mod sql {
-    pub const SQL_GET_CHANGES: &str = "SELECT changes()";
     pub const SQL_BEGIN_TRANSACTION: &str = "BEGIN TRANSACTION";
     pub const SQL_ROLLBACK: &str = "ROLLBACK";
     pub const SQL_COMMIT: &str = "COMMIT";
@@ -391,14 +284,20 @@ mod test {
 
     use super::Connection;
 
+    const MIGRATIONS: &str = include_str!("../migrations.sql");
+
+    fn open_database() -> super::Connection {
+        Connection::try_open_default(Some(MIGRATIONS)).unwrap()
+    }
+
     #[test]
-    fn open_database() {
-        Connection::open_test().unwrap();
+    fn test_open_database() {
+        open_database();
     }
 
     #[test]
     fn insert_lyric() {
-        let connection = Connection::open_test().unwrap();
+        let connection = open_database();
 
         let id = Uuid::default().to_string();
         let mut lyric = Lyric::new(id.clone(), "Zie maar hoe je het doet".to_owned(), vec![]);
@@ -420,7 +319,7 @@ mod test {
 
     #[test]
     fn insert_playlist() {
-        let connection = Connection::open_test().unwrap();
+        let connection = open_database();
 
         let lyric_id = Uuid::default().to_string();
         let lyric = Lyric::new(
@@ -462,7 +361,7 @@ mod test {
 
     #[test]
     fn show_tables() {
-        let connection = Connection::open_test().unwrap();
+        let connection = open_database();
 
         struct Table {
             name: String,
@@ -479,6 +378,7 @@ mod test {
             }
         }
         let tables = connection
+            .0
             .query(
                 "SELECT name FROM sqlite_schema WHERE type ='table' AND  name NOT LIKE 'sqlite_%';",
                 &[],
@@ -504,7 +404,7 @@ mod test {
 
     #[test]
     fn import_db() {
-        let connection = Connection::open_test().unwrap();
+        let connection = open_database();
 
         let db = Db::try_from_json(include_bytes!("../data/db.json")).unwrap();
         connection.replace_db(&db).unwrap();

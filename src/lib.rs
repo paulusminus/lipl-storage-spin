@@ -17,6 +17,14 @@ mod handler;
 mod message;
 mod persistence;
 
+#[cfg(not(target_family = "wasm"))]
+#[cfg_attr(not(target_family = "wasm"), path = "rusqlite_connection.rs")]
+mod connection;
+
+#[cfg(target_family = "wasm")]
+#[cfg_attr(target_family = "wasm", path = "spin_sqlite_connection.rs")]
+mod connection;
+
 type Result<T> = std::result::Result<T, Error>;
 
 fn request_id() -> &'static Uuid {

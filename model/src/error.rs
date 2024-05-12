@@ -51,9 +51,6 @@ pub enum Error {
     #[error("Variable: {0}")]
     Variable(#[from] spin_sdk::variables::Error),
 
-    #[error("Spin SQLite: {0}")]
-    SpinSQLite(#[from] spin_sdk::sqlite::Error),
-
     #[error("Missing lyric id")]
     MissingLyricId,
 
@@ -65,6 +62,10 @@ pub enum Error {
 
     #[error("Parsing int: {0}")]
     ParseInt(#[from] ParseIntError),
+
+    #[cfg(target_family = "wasm")]
+    #[error("Spin SQLite: {0}")]
+    SpinSQLite(#[from] spin_sdk::sqlite::Error),
 
     #[cfg(not(target_family = "wasm"))]
     #[error("Rusqlite: {0}")]

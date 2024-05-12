@@ -96,10 +96,10 @@ fn to_parts(s: &str) -> Result<Vec<Vec<String>>> {
     s.parse::<Parts>().err_into().map(|p| p.parts())
 }
 
-impl TryFrom<spin_sdk::sqlite::Row<'_>> for Lyric {
+impl<'a> TryFrom<spin_sdk::sqlite::Row<'a>> for Lyric {
     type Error = Error;
 
-    fn try_from(row: spin_sdk::sqlite::Row<'_>) -> Result<Self> {
+    fn try_from(row: spin_sdk::sqlite::Row<'a>) -> Result<Self> {
         Ok(Self {
             id: row.column("id").map(Into::into)?,
             title: row.column("title").map(Into::into)?,
@@ -153,10 +153,10 @@ impl<T: Hash> Etag for T {
     }
 }
 
-impl TryFrom<spin_sdk::sqlite::Row<'_>> for Playlist {
+impl<'a> TryFrom<spin_sdk::sqlite::Row<'a>> for Playlist {
     type Error = Error;
 
-    fn try_from(row: spin_sdk::sqlite::Row<'_>) -> Result<Self> {
+    fn try_from(row: spin_sdk::sqlite::Row<'a>) -> Result<Self> {
         Ok(Self {
             id: row.column("id").map(Into::into)?,
             title: row.column("title").map(Into::into)?,
