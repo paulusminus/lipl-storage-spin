@@ -38,15 +38,8 @@ impl<E: From<Error>> DbConnection<E> {
     {
         self.inner.execute(sql.as_ref(), parameters)?;
         let changes = self.inner.execute("SELECT changes()", &[])?;
-        match changes.rows.first().cloned() {
-            Some(row) => {
-                // using i64 is crucial !!!
-                let count = row
-                    .get::<i64>(0)
-                    .ok_or(Error::Io("Column changes() missing".to_owned()))?;
-                Ok(count)
-            }
-            None => Ok(0),
-        }
+        let row = changes.rows.first().cloned().ok_or(Error::Io("changes() has no rows".to_owned()))?;
+        let count = row.get::<i64>(0).ok_or(Error::Io("Column changes() missing".to_owned()))?;
+        Ok(count)
     }
 }

@@ -19,7 +19,7 @@ impl<E: From<Error>> DbConnection<E> {
         }
         Ok(Self {
             inner: connection,
-            phantomdata: PhantomData::default(),
+            phantomdata: PhantomData,
         })
     }
 
@@ -70,5 +70,5 @@ fn rusqlite_parameter(parameter: &Value) -> rusqlite::types::Value {
 }
 
 fn rusqlite_parameters(parameters: &[Value]) -> Vec<rusqlite::types::Value> {
-    parameters.into_iter().map(rusqlite_parameter).collect()
+    parameters.iter().map(rusqlite_parameter).collect()
 }

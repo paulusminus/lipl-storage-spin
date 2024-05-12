@@ -26,7 +26,7 @@ impl Connection {
         self.0.execute(sql::SQL_COMMIT, &[]).map(|_| ())
     }
 
-    pub(crate) fn get_lyric_list<'a>(&'a self) -> Result<Vec<Lyric>> {
+    pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
         self.0
             .query(sql::SQL_GET_LYRIC_LIST, &[], |row| Lyric::try_from(row))
     }
