@@ -11,4 +11,3 @@ mod connection;
 
 #[cfg(not(target_family = "wasm"))]
 pub use connection::DbConnection;
-

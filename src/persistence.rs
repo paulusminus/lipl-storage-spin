@@ -50,7 +50,6 @@ impl Connection {
         self.0
             .execute(sql::SQL_DELETE_LYRIC, &params)
             .map(|c| c > 0)
-            .err_into()
     }
 
     pub(crate) fn update_lyric(&self, lyric: &Lyric) -> Result<bool> {
@@ -62,7 +61,6 @@ impl Connection {
         self.0
             .execute(sql::SQL_UPDATE_LYRIC, &params)
             .map(|c| c > 0)
-            .err_into()
     }
 
     pub(crate) fn insert_lyric(&self, lyric: &Lyric) -> Result<bool> {
@@ -75,24 +73,21 @@ impl Connection {
         self.0
             .execute(sql::SQL_INSERT_LYRIC, &params)
             .map(|c| c > 0)
-            .err_into()
     }
 
     fn get_playlist_members<D>(&self, playlist_id: D) -> Result<Vec<String>>
     where
         D: Display,
     {
-        self.0
-            .query(
-                sql::SQL_GET_MEMBER_LYRICS,
-                &[Value::Text(playlist_id.to_string())],
-                |r| {
-                    r.get::<&str>("lyric_id")
-                        .ok_or(Error::MissingLyricId)
-                        .map(String::from)
-                },
-            )
-            .err_into()
+        self.0.query(
+            sql::SQL_GET_MEMBER_LYRICS,
+            &[Value::Text(playlist_id.to_string())],
+            |r| {
+                r.get::<&str>("lyric_id")
+                    .ok_or(Error::MissingLyricId)
+                    .map(String::from)
+            },
+        )
     }
 
     pub(crate) fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
@@ -127,36 +122,22 @@ impl Connection {
     where
         D: Display,
     {
-        let params = vec![Value::Text(id.to_string())];
+        let params = [Value::Text(id.to_string())];
         self.0
             .execute(sql::SQL_DELETE_PLAYLIST, &params)
             .map(|count| count > 0)
-            .err_into()
     }
 
-    pub(crate) fn delete_members<F>(&self, playlist_id: &String, onerror: F) -> Result<i64>
-    where
-        F: Fn() -> Result<()>,
-    {
+    pub(crate) fn delete_members(&self, playlist_id: &str) -> Result<i64> {
         self.0
-            .execute(sql::SQL_DELETE_MEMBER, &[Value::Text(playlist_id.clone())])
-            .inspect_err(|_| {
-                if onerror().is_err() {
-                    message::delete_member_failure(playlist_id);
-                }
-            })
-            .err_into()
+            .execute(
+                sql::SQL_DELETE_MEMBER,
+                &[Value::Text(String::from(playlist_id))],
+            )
+            .inspect_err(|error| self.on_error_rollback(error))
     }
 
-    pub(crate) fn insert_members<F>(
-        &self,
-        playlist_id: &String,
-        lyric_ids: &[String],
-        onerror: F,
-    ) -> Result<()>
-    where
-        F: Fn() -> Result<()>,
-    {
+    pub(crate) fn insert_members(&self, playlist_id: &str, lyric_ids: &[String]) -> Result<()> {
         let mut i: i64 = 0;
         for lyric_id in lyric_ids {
             i += 1;
@@ -164,16 +145,12 @@ impl Connection {
                 .execute(
                     sql::SQL_INSERT_MEMBER,
                     &[
-                        Value::Text(playlist_id.clone()),
+                        Value::Text(String::from(playlist_id)),
                         Value::Text(lyric_id.clone()),
                         Value::Integer(i),
                     ],
                 )
-                .inspect_err(|_| {
-                    if onerror().is_err() {
-                        message::insert_member_failure(lyric_id, playlist_id);
-                    }
-                })?;
+                .inspect_err(|error| self.on_error_rollback(error))?;
         }
         Ok(())
     }
@@ -181,7 +158,7 @@ impl Connection {
     pub(crate) fn update_playlist(&self, playlist: &Playlist) -> Result<()> {
         self.begin_transaction()?;
 
-        self.delete_members(&playlist.id, || self.roll_back())?;
+        self.delete_members(&playlist.id)?;
 
         self.0
             .execute(
@@ -198,14 +175,16 @@ impl Connection {
                 }
             })?;
 
-        self.insert_members(&playlist.id, &playlist.members, || self.roll_back())?;
+        self.insert_members(&playlist.id, &playlist.members)?;
         self.commit()?;
 
         Ok(())
     }
 
-    pub(crate) fn insert_playlist(&self, playlist: &Playlist) -> Result<()> {
-        self.begin_transaction()?;
+    pub(crate) fn insert_playlist(&self, playlist: &Playlist, transaction: bool) -> Result<()> {
+        if transaction {
+            self.begin_transaction()?;
+        }
 
         self.0
             .execute(
@@ -222,27 +201,82 @@ impl Connection {
                 };
             })?;
 
-        self.insert_members(&playlist.id, &playlist.members, || self.roll_back())?;
-        self.commit()?;
+        self.insert_members(&playlist.id, &playlist.members)?;
+
+        if transaction {
+            self.commit()?;
+        }
 
         Ok(())
     }
 
+    pub(crate) fn update_lyric_list_etag(&self) -> Result<()> {
+        self.0
+            .execute(
+                sql::SQL_UPDATE_LYRIC_LIST_ETAG,
+                &[Value::Text(Uuid::default().to_string())],
+            )
+            .map(|_| ())
+    }
+
+    pub(crate) fn update_playlist_list_etag(&self) -> Result<()> {
+        let tag = Uuid::default().to_string();
+        self.0
+            .execute(sql::SQL_UPDATE_PLAYLIST_LIST_ETAG, &[Value::Text(tag)])
+            .map(|_| ())
+    }
+
+    pub(crate) fn delete_all_playlists(&self) -> Result<()> {
+        self.0
+            .execute(sql::SQL_DELETE_ALL_PLAYLISTS, &[])
+            .inspect_err(|error| self.on_error_rollback(error))
+            .map(|_| ())
+    }
+
+    pub(crate) fn delete_all_lyrics(&self) -> Result<()> {
+        self.0
+            .execute(sql::SQL_DELETE_ALL_LYRICS, &[])
+            .inspect_err(|error| self.on_error_rollback(error))
+            .map(|_| ())
+    }
+
+    pub(crate) fn delete_all_members(&self) -> Result<()> {
+        self.0
+            .execute(sql::SQL_DELETE_ALL_MEMBERS, &[])
+            .inspect_err(|error| self.on_error_rollback(error))
+            .map(|_| ())
+    }
+
     pub(crate) fn replace_db(&self, db: &Db) -> Result<()> {
-        self.0.execute("DELETE FROM playlist", &[])?;
-        self.0.execute("DELETE FROM lyric", &[])?;
-        self.0.execute("DELETE FROM member", &[])?;
+        self.begin_transaction()?;
+
+        self.delete_all_playlists()?;
+        self.delete_all_lyrics()?;
+        self.delete_all_members()?;
 
         db.lyrics
             .iter()
             .map(|lyric| self.insert_lyric(lyric))
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
+            .inspect_err(|error| self.on_error_rollback(error))?;
         db.playlists
             .iter()
-            .map(|playlist| self.insert_playlist(playlist))
-            .collect::<Result<Vec<_>>>()?;
+            .map(|playlist| self.insert_playlist(playlist, false))
+            .collect::<Result<Vec<_>>>()
+            .inspect_err(|error| self.on_error_rollback(error))?;
 
-        Ok(())
+        self.update_lyric_list_etag()
+            .inspect_err(|error| self.on_error_rollback(error))?;
+        self.update_playlist_list_etag()
+            .inspect_err(|error| self.on_error_rollback(error))?;
+
+        self.commit()
+    }
+
+    fn on_error_rollback<D: Display>(&self, d: D) {
+        if self.roll_back().is_err() {
+            message::rollback_failure(d);
+        }
     }
 }
 
@@ -273,6 +307,15 @@ mod sql {
     pub const SQL_INSERT_MEMBER: &str =
         "INSERT INTO member (playlist_id, lyric_id, ordering) VALUES (?, ?, ?)";
     pub const SQL_DELETE_MEMBER: &str = "DELETE FROM member WHERE playlist_id = ?";
+
+    pub const SQL_UPDATE_LYRIC_LIST_ETAG: &str =
+        "UPDATE list_etag SET etag = ? WHERE id = 'lyrics'";
+    pub const SQL_UPDATE_PLAYLIST_LIST_ETAG: &str =
+        "UPDATE list_etag SET etag = ? WHERE id = 'playlists'";
+
+    pub const SQL_DELETE_ALL_PLAYLISTS: &str = "DELETE FROM playlist";
+    pub const SQL_DELETE_ALL_LYRICS: &str = "DELETE FROM lyric";
+    pub const SQL_DELETE_ALL_MEMBERS: &str = "DELETE FROM member";
 }
 
 #[cfg(test)]
@@ -340,7 +383,7 @@ mod test {
             "Alles".to_owned(),
             vec![lyric_id.clone()],
         );
-        connection.insert_playlist(&playlist).unwrap();
+        connection.insert_playlist(&playlist, true).unwrap();
 
         let stored_playlist = connection
             .get_playlist(playlist_id.clone())

@@ -100,7 +100,7 @@ pub(crate) fn insert_playlist(req: Request, _: Params) -> Result<impl IntoRespon
         return Ok(bad_request());
     };
     Connection::try_open_default(None)
-        .and_then(|c| c.insert_playlist(&playlist))
+        .and_then(|c| c.insert_playlist(&playlist, true))
         .map(|_| JsonResponse::new(playlist, req).into_response())
 }
 
