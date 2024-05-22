@@ -7,3 +7,5 @@
 ## Todo
 
 - improve performance by introducing controlled redundancy. etags for list of lyric of playlist begin generated after an update (create, update, insert).
+
+- build and deploy progressive web app.
