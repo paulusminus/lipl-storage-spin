@@ -132,7 +132,7 @@ impl Connection {
         self.0
             .execute(
                 sql::SQL_DELETE_MEMBER,
-                &[Value::Text(String::from(playlist_id))],
+                &[Value::Text(playlist_id.into())],
             )
             .inspect_err(|error| self.on_error_rollback(error))
     }
@@ -145,7 +145,7 @@ impl Connection {
                 .execute(
                     sql::SQL_INSERT_MEMBER,
                     &[
-                        Value::Text(String::from(playlist_id)),
+                        Value::Text(playlist_id.into()),
                         Value::Text(lyric_id.clone()),
                         Value::Integer(i),
                     ],
