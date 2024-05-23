@@ -32,7 +32,7 @@ fn now() -> &'static Instant {
 /// A simple Spin HTTP component.
 #[http_component]
 fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
-    message::request_received(req.path());
+    message::request_received(req.path(), req.method());
     let api = Api::default();
     if let Some(authorization_value) = req
         .header("Authorization")

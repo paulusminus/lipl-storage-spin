@@ -10,10 +10,11 @@ pub fn db_connection_established() {
     );
 }
 
-pub fn request_received(path: impl Display) {
+pub fn request_received(path: impl Display, method: impl Display) {
     println!(
-        "{}: received request {} after {} milliseconds",
+        "{}: received {} {} request after {} milliseconds",
         request_id(),
+        method.to_string().to_lowercase(),
         path,
         now().elapsed().as_millis()
     );
