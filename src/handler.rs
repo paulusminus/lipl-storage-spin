@@ -55,19 +55,16 @@ pub(crate) fn update_lyric(req: Request, params: Params) -> Result<impl IntoResp
         lyric_post.title.clone(),
         lyric_post.parts.clone(),
     );
-    Connection::try_open_default(None).and_then(|c| c.update_lyric(&lyric))?;
-    Ok(no_content())
+    Connection::try_open_default(None).and_then(|c| c.update_lyric(&lyric))
+    .map(|_| no_content())
 }
 
 pub(crate) fn delete_lyric(_: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(Response::new(400, ()));
     };
-    if Connection::try_open_default(None).and_then(|c| c.delete_lyric(id))? {
-        Ok(no_content())
-    } else {
-        Ok(not_found())
-    }
+    Connection::try_open_default(None).and_then(|c| c.delete_lyric(id))
+    .map(|_| no_content())
 }
 
 pub(crate) fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
@@ -101,7 +98,7 @@ pub(crate) fn insert_playlist(req: Request, _: Params) -> Result<impl IntoRespon
     };
     Connection::try_open_default(None)
         .and_then(|c| c.insert_playlist(&playlist, true))
-        .map(|_| JsonResponse::new(playlist, req).into_response())
+        .map(|_| created())
 }
 
 pub(crate) fn update_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
@@ -118,15 +115,15 @@ pub(crate) fn update_playlist(req: Request, params: Params) -> Result<impl IntoR
     );
     Connection::try_open_default(None)
         .and_then(|c| c.update_playlist(&playlist))
-        .map(|_| JsonResponse::new(playlist, req).into_response())
+        .map(|_| no_content())
 }
 
 pub(crate) fn delete_playlist(_: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
-    Connection::try_open_default(None).and_then(|c| c.delete_playlist(id))?;
-    Ok(no_content())
+    Connection::try_open_default(None).and_then(|c| c.delete_playlist(id))
+    .map(|_| no_content())
 }
 
 pub(crate) fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
