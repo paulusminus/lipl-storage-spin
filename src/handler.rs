@@ -55,16 +55,18 @@ pub(crate) fn update_lyric(req: Request, params: Params) -> Result<impl IntoResp
         lyric_post.title.clone(),
         lyric_post.parts.clone(),
     );
-    Connection::try_open_default(None).and_then(|c| c.update_lyric(&lyric))
-    .map(|_| no_content())
+    Connection::try_open_default(None)
+        .and_then(|c| c.update_lyric(&lyric))
+        .map(|_| no_content())
 }
 
 pub(crate) fn delete_lyric(_: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(Response::new(400, ()));
     };
-    Connection::try_open_default(None).and_then(|c| c.delete_lyric(id))
-    .map(|_| no_content())
+    Connection::try_open_default(None)
+        .and_then(|c| c.delete_lyric(id))
+        .map(|_| no_content())
 }
 
 pub(crate) fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
@@ -122,8 +124,9 @@ pub(crate) fn delete_playlist(_: Request, params: Params) -> Result<impl IntoRes
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
-    Connection::try_open_default(None).and_then(|c| c.delete_playlist(id))
-    .map(|_| no_content())
+    Connection::try_open_default(None)
+        .and_then(|c| c.delete_playlist(id))
+        .map(|_| no_content())
 }
 
 pub(crate) fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {

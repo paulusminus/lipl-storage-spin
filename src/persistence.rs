@@ -130,10 +130,7 @@ impl Connection {
 
     pub(crate) fn delete_members(&self, playlist_id: &str) -> Result<i64> {
         self.0
-            .execute(
-                sql::SQL_DELETE_MEMBER,
-                &[Value::Text(playlist_id.into())],
-            )
+            .execute(sql::SQL_DELETE_MEMBER, &[Value::Text(playlist_id.into())])
             .inspect_err(|error| self.on_error_rollback(error))
     }
 

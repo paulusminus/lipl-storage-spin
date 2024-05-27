@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "connection"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "rusqlite",
  "spin-sdk",
@@ -416,7 +416,7 @@ dependencies = [
 
 [[package]]
 name = "lipl-storage-spin"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "connection",
  "model",
@@ -438,7 +438,7 @@ checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
 name = "model"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "base64",
  "bs58",

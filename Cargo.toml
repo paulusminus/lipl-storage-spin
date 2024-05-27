@@ -1,8 +1,9 @@
 [package]
 name = "lipl-storage-spin"
-description = "Lipl Storage on spin"
+description = "Lipl Storage rest api on spin"
 authors.workspace = true
 edition.workspace = true
+repository.workspace = true
 version.workspace = true
 
 [lib]
@@ -25,8 +26,9 @@ rusqlite = { version = "0.31", features = ["serde_json"] }
 
 [workspace.package]
 authors = ["paulusminus <info@paulmin.nl>"]
+repository = "https://github.com/paulusminus/lipl-storage-spin"
 edition = "2021"
-version = "0.7.0"
+version = "0.8.0"
 
 [workspace]
 members = [ "connection", "model" ]

@@ -1,7 +1,9 @@
 [package]
 name = "model"
+description = "Lyrics and playlists types"
 authors.workspace = true
 edition.workspace = true
+repository.workspace = true
 version.workspace = true
 
 [dependencies]

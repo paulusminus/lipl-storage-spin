@@ -2,7 +2,10 @@ use std::{sync::OnceLock, time::Instant};
 
 use crate::api::Api;
 use model::{
-    basic_authentication::{unauthenticated, Authentication}, error::Error, response::no_content, Uuid
+    basic_authentication::{unauthenticated, Authentication},
+    error::Error,
+    response::no_content,
+    Uuid,
 };
 use spin_sdk::{
     http::{IntoResponse, Request, Response},

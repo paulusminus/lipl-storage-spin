@@ -1,7 +1,9 @@
 [package]
 name = "connection"
+description = "Abstract sqlite implementation"
 authors.workspace = true
 edition.workspace = true
+repository.workspace = true
 version.workspace = true
 
 [dependencies]
