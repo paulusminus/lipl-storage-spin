@@ -2,9 +2,7 @@ use std::{sync::OnceLock, time::Instant};
 
 use crate::api::Api;
 use model::{
-    basic_authentication::{unauthenticated, Authentication},
-    error::Error,
-    Uuid,
+    basic_authentication::{unauthenticated, Authentication}, error::Error, response::no_content, Uuid
 };
 use spin_sdk::{
     http::{IntoResponse, Request, Response},
@@ -33,6 +31,11 @@ fn now() -> &'static Instant {
 #[http_component]
 fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
     message::request_received(req.path(), req.method());
+
+    if req.path() == "/lipl/api/v1/health" {
+        return Ok(no_content());
+    }
+
     let api = Api::default();
     if let Some(authorization_value) = req
         .header("Authorization")
