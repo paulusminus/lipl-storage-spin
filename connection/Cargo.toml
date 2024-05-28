@@ -9,5 +9,8 @@ version.workspace = true
 [dependencies]
 spin-sdk = "3.0.1"
 
+[build-dependencies]
+cfg_aliases = "0.2"
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rusqlite = { version = "0.31", features = ["serde_json"] }

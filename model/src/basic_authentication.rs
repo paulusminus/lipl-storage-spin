@@ -63,7 +63,7 @@ impl std::str::FromStr for Authentication {
         if let Some(stripped) = s.strip_prefix("Basic ") {
             stripped.parse::<Credentials>().map(Authentication::Basic)
         } else {
-            Err(Error::from(AuthenticationError::AuthenticationHeader))
+            Err(Error::from(AuthenticationError::Unsupported))
         }
     }
 }

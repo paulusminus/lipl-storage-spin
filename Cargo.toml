@@ -21,6 +21,9 @@ model = { path = "model/" }
 spin-sdk = "3.0.1"
 connection = { path = "connection/" }
 
+[build-dependencies]
+cfg_aliases = "0.1"
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rusqlite = { version = "0.31", features = ["serde_json"] }
 

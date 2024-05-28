@@ -18,6 +18,9 @@ pub enum AuthenticationError {
     #[error("Authentication header")]
     AuthenticationHeader,
 
+    #[error("Unsupported")]
+    Unsupported,
+    
     #[error("Decode base64")]
     DecodeBase64(#[from] base64::DecodeError),
 }
