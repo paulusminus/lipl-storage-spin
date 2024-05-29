@@ -20,7 +20,7 @@ pub enum AuthenticationError {
 
     #[error("Unsupported")]
     Unsupported,
-    
+
     #[error("Decode base64")]
     DecodeBase64(#[from] base64::DecodeError),
 }

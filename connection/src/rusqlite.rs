@@ -69,23 +69,12 @@ impl<E: From<Error>> DbConnection<E> {
 
 fn spin_sqlite_value(value: ValueRef) -> spin_sdk::sqlite::Value {
     match value {
-        ValueRef::Blob(blob) => {
-            Value::Blob(blob.to_vec())
-        }
-        ValueRef::Integer(integer) => {
-            Value::Integer(integer)
-        }
-        ValueRef::Real(real) => {
-            Value::Real(real)
-        }
-        ValueRef::Null => {
-            Value::Null
-        }
-        ValueRef::Text(text) => {
-                Value::Text(from_utf8(text).unwrap().to_owned())
-        }
+        ValueRef::Blob(blob) => Value::Blob(blob.to_vec()),
+        ValueRef::Integer(integer) => Value::Integer(integer),
+        ValueRef::Real(real) => Value::Real(real),
+        ValueRef::Null => Value::Null,
+        ValueRef::Text(text) => Value::Text(from_utf8(text).unwrap().to_owned()),
     }
-
 }
 
 fn rusqlite_parameter(parameter: &Value) -> rusqlite::types::Value {

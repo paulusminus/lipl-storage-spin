@@ -60,6 +60,7 @@ mod test {
 
     #[test]
     fn migration_whatever() {
-        let migration = super::DbConnection::try_open_default(Some(include_str!("../migrations.sql"))).unwrap();
+        let migration =
+            super::DbConnection::try_open_default(Some(include_str!("../migrations.sql"))).unwrap();
     }
 }
