@@ -107,11 +107,11 @@ where
 {
     type Error = Error;
     fn try_from(query_result: &'a QueryResult) -> std::prelude::v1::Result<Self, Self::Error> {
-        let list = query_result
+        query_result
             .rows()
             .map(T::try_from)
-            .collect::<Result<Vec<T>>>()?;
-        Ok(Self { inner: list })
+            .collect::<Result<Vec<T>>>()
+            .map(|list| Self { inner: list })
     }
 }
 
