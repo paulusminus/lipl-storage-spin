@@ -57,4 +57,9 @@ mod test {
     fn migration() {
         let connection = super::DbConnection::try_open_default(None).unwrap();
     }
+
+    #[test]
+    fn migration_whatever() {
+        let migration = super::DbConnection::try_open_default(Some(include_str!("../migrations.sql"))).unwrap();
+    }
 }

@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::from_utf8};
 
-use rusqlite::{params_from_iter, Error, Params};
+use rusqlite::{params_from_iter, types::ValueRef, Error, Params};
 use spin_sdk::sqlite::{QueryResult, Row, RowResult, Value};
 
 pub struct DbConnection<E>
@@ -36,16 +36,22 @@ impl<E: From<Error>> DbConnection<E> {
             .collect::<Vec<_>>();
         let mut rows = prepared.query(rusqlite_parameters(parameters))?;
         let mut query_result = QueryResult {
-            columns,
+            columns: columns.clone(),
             rows: vec![],
         };
         while let Some(row) = rows.next()? {
             let mut row_result = RowResult { values: vec![] };
-            for column in query_result.columns.iter() {
-                let field = row.get::<&str, String>(column)?;
-                row_result.values.push(Value::Text(field));
+            for c in 0..columns.len() {
+                if let Ok(value_ref) = row.get_ref(c) {
+                    row_result.values.push(spin_sqlite_value(value_ref));
+                };
             }
             query_result.rows.push(row_result);
+            // for column in query_result.columns.iter() {
+            //     let field = row.get::<&str, String>(column)?;
+            //     row_result.values.push(Value::Text(field));
+            // }
+            // query_result.rows.push(row_result);
         }
         query_result.rows().map(f).collect()
     }
@@ -59,6 +65,27 @@ impl<E: From<Error>> DbConnection<E> {
             .execute(sql.as_ref(), rusqlite_parameters(parameters))?;
         Ok(count.try_into().unwrap())
     }
+}
+
+fn spin_sqlite_value(value: ValueRef) -> spin_sdk::sqlite::Value {
+    match value {
+        ValueRef::Blob(blob) => {
+            Value::Blob(blob.to_vec())
+        }
+        ValueRef::Integer(integer) => {
+            Value::Integer(integer)
+        }
+        ValueRef::Real(real) => {
+            Value::Real(real)
+        }
+        ValueRef::Null => {
+            Value::Null
+        }
+        ValueRef::Text(text) => {
+                Value::Text(from_utf8(text).unwrap().to_owned())
+        }
+    }
+
 }
 
 fn rusqlite_parameter(parameter: &Value) -> rusqlite::types::Value {
