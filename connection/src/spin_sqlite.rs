@@ -21,7 +21,7 @@ impl<E: From<Error>> DbConnection<E> {
         })
     }
 
-    pub fn query<F, S, T>(&self, sql: S, parameters: &[Value]) -> Result<Vec<T>, E>
+    pub fn query<F, S, T>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
     where
         F: Fn(Row) -> Result<T, E>,
         S: AsRef<str>,
