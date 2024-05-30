@@ -32,4 +32,4 @@ edition = "2021"
 version = "0.8.1"
 
 [workspace]
-members = [ "spin-sqlite-connection", "model" , "lipl-storage-test"]
+members = [ "spin-sqlite-connection", "model"]
