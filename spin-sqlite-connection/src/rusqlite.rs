@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, str::from_utf8};
 
 use rusqlite::{params_from_iter, types::ValueRef, Error, Params};
-use spin_sdk::sqlite::{QueryResult, Row, RowResult, Value};
+use spin_sdk::sqlite::{QueryResult, RowResult, Value};
 
 pub struct DbConnection<E>
 where
@@ -23,9 +23,8 @@ impl<E: From<Error>> DbConnection<E> {
         })
     }
 
-    pub fn query<F, S, T>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
+    pub fn query<S>(&self, sql: S, parameters: &[Value]) -> Result<QueryResult, E>
     where
-        F: Fn(Row) -> Result<T, E>,
         S: AsRef<str>,
     {
         let mut prepared = self.inner.prepare(sql.as_ref())?;
@@ -34,26 +33,15 @@ impl<E: From<Error>> DbConnection<E> {
             .into_iter()
             .map(String::from)
             .collect::<Vec<_>>();
-        let mut rows = prepared.query(rusqlite_parameters(parameters))?;
-        let mut query_result = QueryResult {
-            columns: columns.clone(),
-            rows: vec![],
-        };
-        while let Some(row) = rows.next()? {
-            let mut row_result = RowResult { values: vec![] };
-            for c in 0..columns.len() {
-                if let Ok(value_ref) = row.get_ref(c) {
-                    row_result.values.push(spin_sqlite_value(value_ref));
-                };
-            }
-            query_result.rows.push(row_result);
-            // for column in query_result.columns.iter() {
-            //     let field = row.get::<&str, String>(column)?;
-            //     row_result.values.push(Value::Text(field));
-            // }
-            // query_result.rows.push(row_result);
-        }
-        query_result.rows().map(f).collect()
+        let rows = prepared
+            .query_map(rusqlite_parameters(parameters), |row| {
+                (0..columns.len())
+                    .map(|i| row.get_ref(i).and_then(spin_sqlite_value))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(|values| RowResult { values })
+            })
+            .and_then(|mapped_rows| mapped_rows.collect::<Result<Vec<_>, Error>>())?;
+        Ok(QueryResult { columns, rows })
     }
 
     pub fn execute<S>(&self, sql: S, parameters: &[Value]) -> Result<i64, E>
@@ -67,13 +55,16 @@ impl<E: From<Error>> DbConnection<E> {
     }
 }
 
-fn spin_sqlite_value(value: ValueRef) -> spin_sdk::sqlite::Value {
+fn spin_sqlite_value(value: ValueRef) -> Result<spin_sdk::sqlite::Value, rusqlite::Error> {
     match value {
-        ValueRef::Blob(blob) => Value::Blob(blob.to_vec()),
-        ValueRef::Integer(integer) => Value::Integer(integer),
-        ValueRef::Real(real) => Value::Real(real),
-        ValueRef::Null => Value::Null,
-        ValueRef::Text(text) => Value::Text(from_utf8(text).unwrap().to_owned()),
+        ValueRef::Blob(blob) => Ok(Value::Blob(blob.to_vec())),
+        ValueRef::Integer(integer) => Ok(Value::Integer(integer)),
+        ValueRef::Real(real) => Ok(Value::Real(real)),
+        ValueRef::Null => Ok(Value::Null),
+        ValueRef::Text(text) => from_utf8(text)
+            .map(String::from)
+            .map(Value::Text)
+            .map_err(Error::Utf8Error),
     }
 }
 

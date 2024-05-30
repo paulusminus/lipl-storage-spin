@@ -1,4 +1,4 @@
-use spin_sdk::sqlite::{Error, Row, Value};
+use spin_sdk::sqlite::{Error, QueryResult, Row, Value};
 use std::marker::PhantomData;
 
 pub struct DbConnection<E>
@@ -21,15 +21,13 @@ impl<E: From<Error>> DbConnection<E> {
         })
     }
 
-    pub fn query<F, S, T>(&self, sql: S, parameters: &[Value], f: F) -> Result<Vec<T>, E>
+    pub fn query<S>(&self, sql: S, parameters: &[Value]) -> Result<QueryResult, E>
     where
-        F: Fn(Row) -> Result<T, E>,
         S: AsRef<str>,
     {
         self.inner
             .execute(sql.as_ref(), parameters)
             .map_err(E::from)
-            .and_then(|result| result.rows().map(f).collect())
     }
 
     pub fn execute<S>(&self, sql: S, parameters: &[Value]) -> Result<i64, E>

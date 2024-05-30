@@ -1,6 +1,6 @@
 [package]
-name = "connection"
-description = "Abstract sqlite implementation"
+name = "spin-sqlite-connection"
+description = "Spin Sqlite Connection abstraction"
 authors.workspace = true
 edition.workspace = true
 repository.workspace = true
@@ -13,4 +13,4 @@ spin-sdk = "3.0.1"
 cfg_aliases = "0.2"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-rusqlite = { version = "0.31", features = ["serde_json"] }
+rusqlite = { version = "0.31" }

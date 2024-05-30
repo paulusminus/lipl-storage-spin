@@ -8,7 +8,6 @@ use chrono::{DateTime, Utc};
 use error::ErrInto;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
-use spin_sdk::sqlite::{QueryResult, Row};
 
 use crate::{error::Error, parts::Parts};
 
@@ -18,6 +17,8 @@ pub mod basic_authentication;
 pub mod error;
 pub mod parts;
 pub mod response;
+
+// pub trait TryFromRow: for<'a> TryFrom<Row<'a>, Error = Error> {}
 
 pub trait TryFromJson {
     fn try_from_json<U: AsRef<[u8]>>(slice: U) -> Result<Self>
@@ -101,20 +102,6 @@ pub struct List<T> {
     pub inner: Vec<T>,
 }
 
-impl<'a, T> TryFrom<&'a QueryResult> for List<T>
-where
-    T: TryFrom<Row<'a>, Error = Error>,
-{
-    type Error = Error;
-    fn try_from(query_result: &'a QueryResult) -> std::prelude::v1::Result<Self, Self::Error> {
-        query_result
-            .rows()
-            .map(T::try_from)
-            .collect::<Result<Vec<T>>>()
-            .map(|list| Self { inner: list })
-    }
-}
-
 impl TryFrom<spin_sdk::sqlite::Row<'_>> for Lyric {
     type Error = Error;
 
@@ -172,10 +159,10 @@ impl<T: Hash> Etag for T {
     }
 }
 
-impl<'a> TryFrom<spin_sdk::sqlite::Row<'a>> for Playlist {
+impl TryFrom<spin_sdk::sqlite::Row<'_>> for Playlist {
     type Error = Error;
 
-    fn try_from(row: spin_sdk::sqlite::Row<'a>) -> Result<Self> {
+    fn try_from(row: spin_sdk::sqlite::Row<'_>) -> Result<Self> {
         Ok(Self {
             id: row.column("id").map(Into::into)?,
             title: row.column("title").map(Into::into)?,
@@ -184,6 +171,22 @@ impl<'a> TryFrom<spin_sdk::sqlite::Row<'a>> for Playlist {
             modified: row.column("modified").and_then(to_datetime).map(Some)?,
             etag: row.column("etag").and_then(to_uuid).map(Some)?,
         })
+    }
+}
+
+pub struct LyricId(String);
+
+impl LyricId {
+    pub fn id(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl TryFrom<spin_sdk::sqlite::Row<'_>> for LyricId {
+    type Error = Error;
+
+    fn try_from(row: spin_sdk::sqlite::Row<'_>) -> Result<Self> {
+        row.column("lyric_id").map(String::from).map(LyricId)
     }
 }
 
@@ -242,7 +245,7 @@ impl std::fmt::Display for Uuid {
 mod test {
     use spin_sdk::sqlite::{QueryResult, RowResult, Value};
 
-    use crate::List;
+    use super::Lyric;
 
     const UUID: super::Uuid = super::Uuid {
         inner: uuid::uuid!("71795c73-3cdc-49f1-847e-93193232e6c2"),
@@ -305,9 +308,13 @@ mod test {
                 },
             ],
         };
-        let list = List::<super::Lyric>::try_from(&query_result).unwrap();
+        let list = query_result
+            .rows()
+            .map(Lyric::try_from)
+            .collect::<Result<Vec<_>, crate::error::Error>>()
+            .unwrap();
 
-        for lyric in list.inner {
+        for lyric in list {
             println!("{}", lyric.title);
         }
     }

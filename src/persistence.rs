@@ -1,14 +1,21 @@
-use spin_sdk::sqlite::Value;
+use spin_sdk::sqlite::{QueryResult, Row, Value};
 use std::fmt::Display;
 
 use crate::{message, Error, Result};
-use model::{error::ErrInto, parts::Parts, Db, Lyric, Playlist, Uuid};
+use model::{error::ErrInto, parts::Parts, Db, Lyric, LyricId, Playlist, Uuid};
 
-pub struct Connection(connection::DbConnection<Error>);
+pub struct Connection(spin_sqlite_connection::DbConnection<Error>);
+
+fn to_models<T>(query_result: QueryResult) -> Result<Vec<T>>
+where
+    T: for<'a> TryFrom<Row<'a>, Error = Error>,
+{
+    query_result.rows().map(T::try_from).collect()
+}
 
 impl Connection {
     pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
-        let connection = connection::DbConnection::try_open_default(migrations).map(Self)?;
+        let connection = spin_sqlite_connection::DbConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
         connection.0.execute("PRAGMA foreign_keys = ON", &[])?;
         Ok(connection)
@@ -28,7 +35,8 @@ impl Connection {
 
     pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
         self.0
-            .query(sql::SQL_GET_LYRIC_LIST, &[], |row| Lyric::try_from(row))
+            .query(sql::SQL_GET_LYRIC_LIST, &[])
+            .and_then(to_models::<Lyric>)
     }
 
     pub(crate) fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
@@ -37,7 +45,8 @@ impl Connection {
     {
         let params = vec![Value::Text(id.to_string())];
         self.0
-            .query(sql::SQL_GET_LYRIC, &params, |row| Lyric::try_from(row))
+            .query(sql::SQL_GET_LYRIC, &params)
+            .and_then(to_models::<Lyric>)
             .map(|result| result.first().cloned())
             .err_into()
     }
@@ -79,21 +88,20 @@ impl Connection {
     where
         D: Display,
     {
-        self.0.query(
-            sql::SQL_GET_MEMBER_LYRICS,
-            &[Value::Text(playlist_id.to_string())],
-            |r| {
-                r.get::<&str>("lyric_id")
-                    .ok_or(Error::MissingLyricId)
-                    .map(String::from)
-            },
-        )
+        self.0
+            .query(
+                sql::SQL_GET_MEMBER_LYRICS,
+                &[Value::Text(playlist_id.to_string())],
+            )
+            .and_then(to_models::<LyricId>)
+            .map(|id_list| id_list.into_iter().map(|lyric_id| lyric_id.id()).collect())
     }
 
     pub(crate) fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
         let mut playlists = self
             .0
-            .query(sql::SQL_GET_PLAYLIST_LIST, &[], |r| Playlist::try_from(r))?;
+            .query(sql::SQL_GET_PLAYLIST_LIST, &[])
+            .and_then(to_models::<Playlist>)?;
 
         for playlist in playlists.iter_mut() {
             playlist.members = self.get_playlist_members(playlist.id.clone())?;
@@ -108,7 +116,8 @@ impl Connection {
         let params = vec![Value::Text(id.to_string())];
         let result = self
             .0
-            .query(sql::SQL_GET_PLAYLIST, &params, |r| Playlist::try_from(r))?;
+            .query(sql::SQL_GET_PLAYLIST, &params)
+            .and_then(to_models::<Playlist>)?;
         match result.first().cloned() {
             Some(mut playlist) => {
                 playlist.members = self.get_playlist_members(&playlist.id)?;
@@ -183,6 +192,13 @@ impl Connection {
             self.begin_transaction()?;
         }
 
+        // if let Err(error) = [
+        //     self.0.execute(sql::SQL_INSERT_PLAYLIST, &[Value::Text(playlist.id.clone()), Value::Text(playlist.title.clone()), Value::Text(Uuid::default().to_string())]).map(|_| ()),
+        //     self.insert_members(&playlist.id, &playlist.members)
+        // ]
+        // .into_iter().collect::<Result<Vec<_>>>() {
+        //     return self.roll_back();
+        // }
         self.0
             .execute(
                 sql::SQL_INSERT_PLAYLIST,
@@ -322,7 +338,7 @@ mod test {
     use model::{error::Error, Db, Lyric, Playlist, TryFromJson, Uuid};
     use spin_sdk::sqlite::Row;
 
-    use super::Connection;
+    use super::{to_models, Connection};
 
     const MIGRATIONS: &str = include_str!("../migrations.sql");
 
@@ -417,13 +433,16 @@ mod test {
                     .map(|s| Self { name: s })
             }
         }
+
+        // impl TryFromRow for Table {}
+
         let tables = connection
             .0
             .query(
                 "SELECT name FROM sqlite_schema WHERE type ='table' AND  name NOT LIKE 'sqlite_%';",
                 &[],
-                |r| Table::try_from(r),
             )
+            .and_then(to_models::<Table>)
             .unwrap();
 
         let mut names = tables
