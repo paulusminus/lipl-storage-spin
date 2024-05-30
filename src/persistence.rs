@@ -28,7 +28,7 @@ impl Connection {
     }
 
     pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
-        self.0.query_model::<Lyric>(sql::SQL_GET_LYRIC_LIST, &[])
+        self.0.query::<Lyric>(sql::SQL_GET_LYRIC_LIST, &[])
     }
 
     pub(crate) fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
@@ -37,7 +37,7 @@ impl Connection {
     {
         let params = vec![Value::Text(id.to_string())];
         self.0
-            .query_model::<Lyric>(sql::SQL_GET_LYRIC, &params)
+            .query::<Lyric>(sql::SQL_GET_LYRIC, &params)
             .map(|result| result.first().cloned())
             .err_into()
     }
@@ -80,7 +80,7 @@ impl Connection {
         D: Display,
     {
         self.0
-            .query_model::<LyricId>(
+            .query::<LyricId>(
                 sql::SQL_GET_MEMBER_LYRICS,
                 &[Value::Text(playlist_id.to_string())],
             )
@@ -88,9 +88,7 @@ impl Connection {
     }
 
     pub(crate) fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
-        let mut playlists = self
-            .0
-            .query_model::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])?;
+        let mut playlists = self.0.query::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])?;
 
         for playlist in playlists.iter_mut() {
             playlist.members = self.get_playlist_members(playlist.id.clone())?;
@@ -103,9 +101,7 @@ impl Connection {
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
-        let result = self
-            .0
-            .query_model::<Playlist>(sql::SQL_GET_PLAYLIST, &params)?;
+        let result = self.0.query::<Playlist>(sql::SQL_GET_PLAYLIST, &params)?;
         match result.first().cloned() {
             Some(mut playlist) => {
                 playlist.members = self.get_playlist_members(&playlist.id)?;
@@ -355,7 +351,7 @@ mod test {
         assert!(stored_lyric.modified.is_some());
         assert!(stored_lyric.etag.is_some());
 
-        lyric.title = "Hallo allemaal".to_owned();
+        "Hallo allemaal".clone_into(&mut lyric.title);
         thread::sleep(Duration::from_millis(5));
         if connection.update_lyric(&lyric).unwrap() {
             let lyric = connection.get_lyric(id.clone()).unwrap().unwrap();
@@ -425,11 +421,9 @@ mod test {
             }
         }
 
-        // impl TryFromRow for Table {}
-
         let tables = connection
             .0
-            .query_model::<Table>(
+            .query::<Table>(
                 "SELECT name FROM sqlite_schema WHERE type ='table' AND  name NOT LIKE 'sqlite_%';",
                 &[],
             )

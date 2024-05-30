@@ -7,7 +7,7 @@ use spin_sdk::{
 
 use crate::{handler, Result};
 
-pub(crate) struct Api {
+pub struct Api {
     router: Router,
 }
 

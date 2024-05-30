@@ -8,7 +8,7 @@ use model::{Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, TryFromJson, Uui
 
 use crate::{persistence::Connection, Result};
 
-pub(crate) fn get_lyric_list(req: Request, _: Params) -> Result<Response> {
+pub fn get_lyric_list(req: Request, _: Params) -> Result<Response> {
     let lyrics = Connection::try_open_default(None).and_then(|c| c.get_lyric_list())?;
     if Some(lyrics.etag()) == if_none_match(&req) {
         Ok(not_modified())
@@ -17,7 +17,7 @@ pub(crate) fn get_lyric_list(req: Request, _: Params) -> Result<Response> {
     }
 }
 
-pub(crate) fn get_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn get_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
@@ -34,7 +34,7 @@ pub(crate) fn get_lyric(req: Request, params: Params) -> Result<impl IntoRespons
     }
 }
 
-pub(crate) fn insert_lyric(req: Request, _: Params) -> Result<impl IntoResponse> {
+pub fn insert_lyric(req: Request, _: Params) -> Result<impl IntoResponse> {
     let Ok(lyric) = Lyric::try_from_json(req.body()) else {
         return Ok(bad_request());
     };
@@ -43,7 +43,7 @@ pub(crate) fn insert_lyric(req: Request, _: Params) -> Result<impl IntoResponse>
         .map(|_| created())
 }
 
-pub(crate) fn update_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn update_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
@@ -60,7 +60,7 @@ pub(crate) fn update_lyric(req: Request, params: Params) -> Result<impl IntoResp
         .map(|_| no_content())
 }
 
-pub(crate) fn delete_lyric(_: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn delete_lyric(_: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(Response::new(400, ()));
     };
@@ -69,7 +69,7 @@ pub(crate) fn delete_lyric(_: Request, params: Params) -> Result<impl IntoRespon
         .map(|_| no_content())
 }
 
-pub(crate) fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
+pub fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
     let playlists = Connection::try_open_default(None).and_then(|c| c.get_playlist_list())?;
     if Some(playlists.etag()) == if_none_match(&req) {
         Ok(not_modified())
@@ -78,7 +78,7 @@ pub(crate) fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResp
     }
 }
 
-pub(crate) fn get_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn get_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
@@ -94,7 +94,7 @@ pub(crate) fn get_playlist(req: Request, params: Params) -> Result<impl IntoResp
     }
 }
 
-pub(crate) fn insert_playlist(req: Request, _: Params) -> Result<impl IntoResponse> {
+pub fn insert_playlist(req: Request, _: Params) -> Result<impl IntoResponse> {
     let Ok(playlist) = Playlist::try_from_json(req.body()) else {
         return Ok(bad_request());
     };
@@ -103,7 +103,7 @@ pub(crate) fn insert_playlist(req: Request, _: Params) -> Result<impl IntoRespon
         .map(|_| created())
 }
 
-pub(crate) fn update_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn update_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
@@ -120,7 +120,7 @@ pub(crate) fn update_playlist(req: Request, params: Params) -> Result<impl IntoR
         .map(|_| no_content())
 }
 
-pub(crate) fn delete_playlist(_: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn delete_playlist(_: Request, params: Params) -> Result<impl IntoResponse> {
     let Some(id) = params.get("id") else {
         return Ok(not_found());
     };
@@ -129,7 +129,7 @@ pub(crate) fn delete_playlist(_: Request, params: Params) -> Result<impl IntoRes
         .map(|_| no_content())
 }
 
-pub(crate) fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
+pub fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     let db = Db::try_from_json(req.body())?;
     let connection = Connection::try_open_default(None)?;
     connection.replace_db(&db)?;
@@ -137,7 +137,7 @@ pub(crate) fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     Ok(no_content())
 }
 
-pub(crate) fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
+pub fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     let connection = Connection::try_open_default(None)?;
     let lyrics = connection.get_lyric_list()?;
     let playlists = connection.get_playlist_list()?;
@@ -145,7 +145,7 @@ pub(crate) fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     Ok(JsonResponse::new(db, req))
 }
 
-pub(crate) fn get_uuid(req: Request, params: Params) -> Result<impl IntoResponse> {
+pub fn get_uuid(req: Request, params: Params) -> Result<impl IntoResponse> {
     let uuid_str = params.get("id").ok_or(Error::NotFound)?;
     let uuid = Uuid::from_uuid_str(uuid_str)?;
 

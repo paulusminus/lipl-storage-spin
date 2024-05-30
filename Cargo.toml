@@ -29,7 +29,7 @@ rusqlite = { version = "0.31", features = ["serde_json"] }
 authors = ["paulusminus <info@paulmin.nl>"]
 repository = "https://github.com/paulusminus/lipl-storage-spin"
 edition = "2021"
-version = "0.8.1"
+version = "0.8.2"
 
 [workspace]
 members = [ "spin-sqlite-connection", "model"]

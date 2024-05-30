@@ -18,8 +18,6 @@ pub mod error;
 pub mod parts;
 pub mod response;
 
-// pub trait TryFromRow: for<'a> TryFrom<Row<'a>, Error = Error> {}
-
 pub trait TryFromJson {
     fn try_from_json<U: AsRef<[u8]>>(slice: U) -> Result<Self>
     where
