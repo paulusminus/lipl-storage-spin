@@ -15,7 +15,8 @@ where
 
 impl Connection {
     pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
-        let connection = spin_sqlite_connection::DbConnection::try_open_default(migrations).map(Self)?;
+        let connection =
+            spin_sqlite_connection::DbConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
         connection.0.execute("PRAGMA foreign_keys = ON", &[])?;
         Ok(connection)

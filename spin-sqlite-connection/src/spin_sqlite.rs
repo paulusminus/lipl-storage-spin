@@ -1,4 +1,4 @@
-use spin_sdk::sqlite::{Error, QueryResult, Row, Value};
+use spin_sdk::sqlite::{Error, QueryResult, Value};
 use std::marker::PhantomData;
 
 pub struct DbConnection<E>
