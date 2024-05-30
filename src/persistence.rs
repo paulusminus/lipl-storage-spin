@@ -1,17 +1,10 @@
-use spin_sdk::sqlite::{QueryResult, Row, Value};
+use spin_sdk::sqlite::Value;
 use std::fmt::Display;
 
 use crate::{message, Error, Result};
 use model::{error::ErrInto, parts::Parts, Db, Lyric, LyricId, Playlist, Uuid};
 
 pub struct Connection(spin_sqlite_connection::DbConnection<Error>);
-
-fn to_models<T>(query_result: QueryResult) -> Result<Vec<T>>
-where
-    T: for<'a> TryFrom<Row<'a>, Error = Error>,
-{
-    query_result.rows().map(T::try_from).collect()
-}
 
 impl Connection {
     pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
@@ -35,9 +28,7 @@ impl Connection {
     }
 
     pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
-        self.0
-            .query(sql::SQL_GET_LYRIC_LIST, &[])
-            .and_then(to_models::<Lyric>)
+        self.0.query_model::<Lyric>(sql::SQL_GET_LYRIC_LIST, &[])
     }
 
     pub(crate) fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
@@ -46,8 +37,7 @@ impl Connection {
     {
         let params = vec![Value::Text(id.to_string())];
         self.0
-            .query(sql::SQL_GET_LYRIC, &params)
-            .and_then(to_models::<Lyric>)
+            .query_model::<Lyric>(sql::SQL_GET_LYRIC, &params)
             .map(|result| result.first().cloned())
             .err_into()
     }
@@ -90,19 +80,17 @@ impl Connection {
         D: Display,
     {
         self.0
-            .query(
+            .query_model::<LyricId>(
                 sql::SQL_GET_MEMBER_LYRICS,
                 &[Value::Text(playlist_id.to_string())],
             )
-            .and_then(to_models::<LyricId>)
             .map(|id_list| id_list.into_iter().map(|lyric_id| lyric_id.id()).collect())
     }
 
     pub(crate) fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
         let mut playlists = self
             .0
-            .query(sql::SQL_GET_PLAYLIST_LIST, &[])
-            .and_then(to_models::<Playlist>)?;
+            .query_model::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])?;
 
         for playlist in playlists.iter_mut() {
             playlist.members = self.get_playlist_members(playlist.id.clone())?;
@@ -117,8 +105,7 @@ impl Connection {
         let params = vec![Value::Text(id.to_string())];
         let result = self
             .0
-            .query(sql::SQL_GET_PLAYLIST, &params)
-            .and_then(to_models::<Playlist>)?;
+            .query_model::<Playlist>(sql::SQL_GET_PLAYLIST, &params)?;
         match result.first().cloned() {
             Some(mut playlist) => {
                 playlist.members = self.get_playlist_members(&playlist.id)?;
@@ -145,21 +132,24 @@ impl Connection {
     }
 
     pub(crate) fn insert_members(&self, playlist_id: &str, lyric_ids: &[String]) -> Result<()> {
-        let mut i: i64 = 0;
-        for lyric_id in lyric_ids {
-            i += 1;
-            self.0
-                .execute(
-                    sql::SQL_INSERT_MEMBER,
-                    &[
-                        Value::Text(playlist_id.into()),
-                        Value::Text(lyric_id.clone()),
-                        Value::Integer(i),
-                    ],
-                )
-                .inspect_err(|error| self.on_error_rollback(error))?;
-        }
-        Ok(())
+        lyric_ids
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (i + 1, s))
+            .map(|(i, lyric_id)| {
+                self.0
+                    .execute(
+                        sql::SQL_INSERT_MEMBER,
+                        &[
+                            Value::Text(playlist_id.into()),
+                            Value::Text(lyric_id.clone()),
+                            Value::Integer(i.try_into().unwrap()),
+                        ],
+                    )
+                    .inspect_err(|error| self.on_error_rollback(error))
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(|_| ())
     }
 
     pub(crate) fn update_playlist(&self, playlist: &Playlist) -> Result<()> {
@@ -339,7 +329,7 @@ mod test {
     use model::{error::Error, Db, Lyric, Playlist, TryFromJson, Uuid};
     use spin_sdk::sqlite::Row;
 
-    use super::{to_models, Connection};
+    use super::Connection;
 
     const MIGRATIONS: &str = include_str!("../migrations.sql");
 
@@ -439,11 +429,10 @@ mod test {
 
         let tables = connection
             .0
-            .query(
+            .query_model::<Table>(
                 "SELECT name FROM sqlite_schema WHERE type ='table' AND  name NOT LIKE 'sqlite_%';",
                 &[],
             )
-            .and_then(to_models::<Table>)
             .unwrap();
 
         let mut names = tables

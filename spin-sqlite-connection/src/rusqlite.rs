@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, str::from_utf8};
 
 use rusqlite::{params_from_iter, types::ValueRef, Error, Params};
-use spin_sdk::sqlite::{QueryResult, RowResult, Value};
+use spin_sdk::sqlite::{QueryResult, Row, RowResult, Value};
 
 pub struct DbConnection<E>
 where
@@ -21,6 +21,14 @@ impl<E: From<Error>> DbConnection<E> {
             inner: connection,
             phantomdata: PhantomData,
         })
+    }
+
+    pub fn query_model<T>(&self, sql: impl AsRef<str>, parameters: &[Value]) -> Result<Vec<T>, E>
+    where
+        T: for<'a> TryFrom<Row<'a>, Error = E>,
+    {
+        self.query(sql, parameters)
+            .and_then(|query_result| query_result.rows().map(T::try_from).collect())
     }
 
     pub fn query<S>(&self, sql: S, parameters: &[Value]) -> Result<QueryResult, E>

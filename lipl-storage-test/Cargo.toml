@@ -1,0 +1,12 @@
+[package]
+name = "lipl-storage-test"
+authors.workspace = true
+repository.workspace = true
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+spin-test-sdk = { git = "https://github.com/fermyon/spin-test", package = "spin-test-sdk" }
+
+[lib]
+crate-type = ["cdylib"]

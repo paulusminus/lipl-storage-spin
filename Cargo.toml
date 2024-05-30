@@ -21,6 +21,7 @@ model = { path = "model/" }
 spin-sdk = "3.0.1"
 spin-sqlite-connection = { path = "spin-sqlite-connection/" }
 
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rusqlite = { version = "0.31", features = ["serde_json"] }
 
@@ -31,4 +32,4 @@ edition = "2021"
 version = "0.8.1"
 
 [workspace]
-members = [ "spin-sqlite-connection", "model" ]
+members = [ "spin-sqlite-connection", "model" , "lipl-storage-test"]

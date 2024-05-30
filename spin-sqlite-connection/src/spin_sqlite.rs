@@ -21,6 +21,14 @@ impl<E: From<Error>> DbConnection<E> {
         })
     }
 
+    pub fn query_model<T>(&self, sql: impl AsRef<str>, parameters: &[Value]) -> Result<Vec<T>, E>
+    where
+        T: for<'a> TryFrom<Row<'a>, Error = E>,
+    {
+        self.query(sql, parameters)
+            .and_then(|query_result| query_result.rows().map(T::try_from).collect())
+    }
+
     pub fn query<S>(&self, sql: S, parameters: &[Value]) -> Result<QueryResult, E>
     where
         S: AsRef<str>,
