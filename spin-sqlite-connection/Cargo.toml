@@ -4,8 +4,8 @@ description = "Spin Sqlite Connection abstraction"
 edition = "2021"
 license = "MIT"
 name = "spin-sqlite-connection"
-repository = "https://github.com/paulusminus/spin-sqlite-connection"
-version = "0.1.0"
+repository = "https://github.com/paulusminus/lipl-storage-spin"
+version = "0.1.1"
 
 [dependencies]
 spin-sdk = "3.0.1"
