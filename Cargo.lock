@@ -417,9 +417,8 @@ name = "lipl-storage-spin"
 version = "0.8.2"
 dependencies = [
  "model",
- "rusqlite",
  "spin-sdk",
- "spin-sqlite-connection",
+ "spin-sqlite-connection 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -528,7 +527,6 @@ dependencies = [
  "fallible-streaming-iterator",
  "hashlink",
  "libsqlite3-sys",
- "serde_json",
  "smallvec",
 ]
 
@@ -691,6 +689,17 @@ dependencies = [
 [[package]]
 name = "spin-sqlite-connection"
 version = "0.1.1"
+dependencies = [
+ "cfg_aliases",
+ "rusqlite",
+ "spin-sdk",
+]
+
+[[package]]
+name = "spin-sqlite-connection"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebc2f57656e0f235fbc2d4be72d430309b250a8e2fe823bebc470773c56f87ab"
 dependencies = [
  "cfg_aliases",
  "rusqlite",
