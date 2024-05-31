@@ -108,9 +108,9 @@ impl TryFrom<spin_sdk::sqlite::Row<'_>> for Lyric {
             id: row.column("id").map(Into::into)?,
             title: row.column("title").map(Into::into)?,
             parts: row.column("parts").and_then(to_parts)?,
-            created: row.column("created").and_then(to_datetime).map(Some)?,
-            modified: row.column("modified").and_then(to_datetime).map(Some)?,
-            etag: row.column("etag").and_then(to_uuid).map(Some)?,
+            created: row.column("created").and_then(to_datetime).map(Into::into)?,
+            modified: row.column("modified").and_then(to_datetime).map(Into::into)?,
+            etag: row.column("etag").and_then(to_uuid).map(Into::into)?,
         })
     }
 }
@@ -165,9 +165,9 @@ impl TryFrom<spin_sdk::sqlite::Row<'_>> for Playlist {
             id: row.column("id").map(Into::into)?,
             title: row.column("title").map(Into::into)?,
             members: vec![],
-            created: row.column("created").and_then(to_datetime).map(Some)?,
-            modified: row.column("modified").and_then(to_datetime).map(Some)?,
-            etag: row.column("etag").and_then(to_uuid).map(Some)?,
+            created: row.column("created").and_then(to_datetime).map(Into::into)?,
+            modified: row.column("modified").and_then(to_datetime).map(Into::into)?,
+            etag: row.column("etag").and_then(to_uuid).map(Into::into)?,
         })
     }
 }
@@ -250,6 +250,13 @@ mod test {
     };
 
     const UUID_JSON: &str = "\"F1iFNnPnjRrqdKfCUKPvU1\"";
+
+    #[test]
+    fn from_option() {
+        let x = 8;
+        let y: Option<i32> = x.into();
+        assert_eq!(y, Some(8));
+    }
 
     #[test]
     fn new() {

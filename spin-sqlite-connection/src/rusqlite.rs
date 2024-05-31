@@ -27,11 +27,11 @@ impl<E: From<Error>> DbConnection<E> {
     where
         T: for<'a> TryFrom<Row<'a>, Error = E>,
     {
-        self.query_rows(sql, parameters)
+        self.query_result(sql, parameters)
             .and_then(|query_result| query_result.rows().map(T::try_from).collect())
     }
 
-    fn query_rows<S>(&self, sql: S, parameters: &[Value]) -> Result<QueryResult, E>
+    fn query_result<S>(&self, sql: S, parameters: &[Value]) -> Result<QueryResult, E>
     where
         S: AsRef<str>,
     {
