@@ -19,7 +19,7 @@ lipl_username = { required = true }
 lipl_password = { required = true }
 
 [component.lipl-storage-spin]
-source = "target/wasm32-wasi/release/lipl_storage_spin.wasm"
+source = "target/wasm32-wasip1/release/lipl_storage_spin.wasm"
 allowed_outbound_hosts = []
 sqlite_databases = ["default"]
 
@@ -28,12 +28,12 @@ lipl_username = "{{ lipl_username }}"
 lipl_password = "{{ lipl_password }}"
 
 [component.lipl-storage-spin.build]
-command = "cargo build --target wasm32-wasi --release"
+command = "cargo build --target wasm32-wasip1 --release"
 watch = ["src/**/*.rs", "Cargo.toml"]
 
 [component.lipl-storage-spin.tool.spin-test]
-source = "../lipl-storage-test/target/wasm32-wasi/release/lipl_storage_test.wasm"
-build = "cargo component build --release"
+source = "../lipl-storage-test/target/wasm32-wasip1/release/lipl_storage_test.wasm"
+build = "cargo component build --release --target=wasm32-wasip1"
 workdir = "../lipl-storage-test"
 
 #[component.fileserver]

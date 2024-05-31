@@ -4,10 +4,30 @@ use std::fmt::Display;
 use crate::{message, Error, Result};
 use model::{error::ErrInto, parts::Parts, Db, Lyric, LyricId, Playlist, Uuid};
 
+trait MapFirst<T: Clone> {
+    fn map_first(self) -> Result<Option<T>>;
+}
+
+impl<T: Clone> MapFirst<T> for Result<Vec<T>> {
+    fn map_first(self) -> Result<Option<T>> {
+        self.map(|list| list.first().cloned())
+    }
+}
+
+trait MapToUnit {
+    fn map_to_unit(self) -> Result<()>;
+}
+
+impl<T> MapToUnit for Result<T> {
+    fn map_to_unit(self) -> Result<()> {
+        self.map(|_| ())
+    }
+}
+
 pub struct Connection(spin_sqlite_connection::DbConnection<Error>);
 
 impl Connection {
-    pub(crate) fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
+    pub fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
         let connection =
             spin_sqlite_connection::DbConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
@@ -15,34 +35,36 @@ impl Connection {
         Ok(connection)
     }
 
-    pub(crate) fn begin_transaction(&self) -> Result<()> {
-        self.0.execute(sql::SQL_BEGIN_TRANSACTION, &[]).map(|_| ())
+    pub fn begin_transaction(&self) -> Result<()> {
+        self.0
+            .execute(sql::SQL_BEGIN_TRANSACTION, &[])
+            .map_to_unit()
     }
 
-    pub(crate) fn roll_back(&self) -> Result<()> {
-        self.0.execute(sql::SQL_ROLLBACK, &[]).map(|_| ())
+    pub fn roll_back(&self) -> Result<()> {
+        self.0.execute(sql::SQL_ROLLBACK, &[]).map_to_unit()
     }
 
-    pub(crate) fn commit(&self) -> Result<()> {
-        self.0.execute(sql::SQL_COMMIT, &[]).map(|_| ())
+    pub fn commit(&self) -> Result<()> {
+        self.0.execute(sql::SQL_COMMIT, &[]).map_to_unit()
     }
 
-    pub(crate) fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
+    pub fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
         self.0.query::<Lyric>(sql::SQL_GET_LYRIC_LIST, &[])
     }
 
-    pub(crate) fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
+    pub fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
     where
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
         self.0
             .query::<Lyric>(sql::SQL_GET_LYRIC, &params)
-            .map(|result| result.first().cloned())
+            .map_first()
             .err_into()
     }
 
-    pub(crate) fn delete_lyric<D>(&self, id: D) -> Result<bool>
+    pub fn delete_lyric<D>(&self, id: D) -> Result<bool>
     where
         D: Display,
     {
@@ -52,7 +74,7 @@ impl Connection {
             .map(|c| c > 0)
     }
 
-    pub(crate) fn update_lyric(&self, lyric: &Lyric) -> Result<bool> {
+    pub fn update_lyric(&self, lyric: &Lyric) -> Result<bool> {
         let params = vec![
             Value::Text(lyric.title.clone()),
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
@@ -63,16 +85,14 @@ impl Connection {
             .map(|c| c > 0)
     }
 
-    pub(crate) fn insert_lyric(&self, lyric: &Lyric) -> Result<bool> {
+    pub fn insert_lyric(&self, lyric: &Lyric) -> Result<()> {
         let params = vec![
             Value::Text(lyric.id.clone()),
             Value::Text(lyric.title.clone()),
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
             Value::Text(Uuid::default().to_string()),
         ];
-        self.0
-            .execute(sql::SQL_INSERT_LYRIC, &params)
-            .map(|c| c > 0)
+        self.0.execute(sql::SQL_INSERT_LYRIC, &params).map_to_unit()
     }
 
     fn get_playlist_members<D>(&self, playlist_id: D) -> Result<Vec<String>>
@@ -87,7 +107,7 @@ impl Connection {
             .map(|id_list| id_list.into_iter().map(|lyric_id| lyric_id.id()).collect())
     }
 
-    pub(crate) fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
+    pub fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
         let mut playlists = self.0.query::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])?;
 
         for playlist in playlists.iter_mut() {
@@ -96,13 +116,16 @@ impl Connection {
         Ok(playlists)
     }
 
-    pub(crate) fn get_playlist<D>(&self, id: D) -> Result<Option<Playlist>>
+    pub fn get_playlist<D>(&self, id: D) -> Result<Option<Playlist>>
     where
         D: Display,
     {
         let params = vec![Value::Text(id.to_string())];
-        let result = self.0.query::<Playlist>(sql::SQL_GET_PLAYLIST, &params)?;
-        match result.first().cloned() {
+        let result = self
+            .0
+            .query::<Playlist>(sql::SQL_GET_PLAYLIST, &params)
+            .map_first()?;
+        match result {
             Some(mut playlist) => {
                 playlist.members = self.get_playlist_members(&playlist.id)?;
                 Ok(Some(playlist.clone()))
@@ -111,81 +134,66 @@ impl Connection {
         }
     }
 
-    pub(crate) fn delete_playlist<D>(&self, id: D) -> Result<bool>
+    pub fn delete_playlist<D>(&self, id: D) -> Result<()>
     where
         D: Display,
     {
-        let params = [Value::Text(id.to_string())];
         self.0
-            .execute(sql::SQL_DELETE_PLAYLIST, &params)
-            .map(|count| count > 0)
+            .execute(sql::SQL_DELETE_PLAYLIST, &[Value::Text(id.to_string())])
+            .map_to_unit()
     }
 
-    pub(crate) fn delete_members(&self, playlist_id: &str) -> Result<i64> {
+    pub fn delete_members(&self, playlist_id: &str) -> Result<i64> {
         self.0
             .execute(sql::SQL_DELETE_MEMBER, &[Value::Text(playlist_id.into())])
-            .inspect_err(|error| self.on_error_rollback(error))
     }
 
-    pub(crate) fn insert_members(&self, playlist_id: &str, lyric_ids: &[String]) -> Result<()> {
+    pub fn insert_members(&self, playlist_id: &str, lyric_ids: &[String]) -> Result<()> {
         lyric_ids
             .iter()
             .enumerate()
             .map(|(i, s)| (i + 1, s))
             .map(|(i, lyric_id)| {
-                self.0
-                    .execute(
-                        sql::SQL_INSERT_MEMBER,
-                        &[
-                            Value::Text(playlist_id.into()),
-                            Value::Text(lyric_id.clone()),
-                            Value::Integer(i.try_into().unwrap()),
-                        ],
-                    )
-                    .inspect_err(|error| self.on_error_rollback(error))
+                self.0.execute(
+                    sql::SQL_INSERT_MEMBER,
+                    &[
+                        Value::Text(playlist_id.into()),
+                        Value::Text(lyric_id.clone()),
+                        Value::Integer(i.try_into().unwrap()),
+                    ],
+                )
             })
             .collect::<Result<Vec<_>>>()
-            .map(|_| ())
+            .map_to_unit()
     }
 
-    pub(crate) fn update_playlist(&self, playlist: &Playlist) -> Result<()> {
+    pub fn update_playlist(&self, playlist: &Playlist) -> Result<()> {
         self.begin_transaction()?;
-
-        self.delete_members(&playlist.id)?;
-
-        self.0
-            .execute(
-                sql::SQL_UPDATE_PLAYLIST,
-                &[
-                    Value::Text(playlist.title.clone()),
-                    Value::Text(Uuid::default().to_string()),
-                    Value::Text(playlist.id.clone()),
-                ],
-            )
-            .inspect_err(|_| {
+        self.delete_members(&playlist.id)
+            .and_then(|_| {
+                self.0.execute(
+                    sql::SQL_UPDATE_PLAYLIST,
+                    &[
+                        Value::Text(playlist.title.clone()),
+                        Value::Text(Uuid::default().to_string()),
+                        Value::Text(playlist.id.clone()),
+                    ],
+                )
+            })
+            .and_then(|_| self.insert_members(&playlist.id, &playlist.members))
+            .and_then(|_| self.commit())
+            .inspect_err(|error| {
                 if self.roll_back().is_err() {
-                    message::update_playlist_failure(&playlist.id);
+                    message::rollback_failure(error);
                 }
-            })?;
-
-        self.insert_members(&playlist.id, &playlist.members)?;
-        self.commit()?;
-
-        Ok(())
+            })
     }
 
-    pub(crate) fn insert_playlist(&self, playlist: &Playlist, transaction: bool) -> Result<()> {
-        if transaction {
+    pub fn insert_playlist(&self, playlist: &Playlist, transact: bool) -> Result<()> {
+        if transact {
             self.begin_transaction()?;
         }
 
-        // if let Err(error) = [
-        //     self.0.execute(sql::SQL_INSERT_PLAYLIST, &[Value::Text(playlist.id.clone()), Value::Text(playlist.title.clone()), Value::Text(Uuid::default().to_string())]).map(|_| ()),
-        //     self.insert_members(&playlist.id, &playlist.members)
-        // ]
-        // .into_iter().collect::<Result<Vec<_>>>() {
-        //     return self.roll_back();
-        // }
         self.0
             .execute(
                 sql::SQL_INSERT_PLAYLIST,
@@ -195,88 +203,77 @@ impl Connection {
                     Value::Text(Uuid::default().to_string()),
                 ],
             )
+            .and_then(|_| self.insert_members(&playlist.id, &playlist.members))
+            .and_then(|_| if transact { self.commit() } else { Ok(()) })
             .inspect_err(|error| {
-                if self.roll_back().is_err() {
-                    message::insert_playlist_failure(error);
-                };
-            })?;
-
-        self.insert_members(&playlist.id, &playlist.members)?;
-
-        if transaction {
-            self.commit()?;
-        }
-
-        Ok(())
+                if transact && self.roll_back().is_err() {
+                    message::rollback_failure(error);
+                }
+            })
     }
 
-    pub(crate) fn update_lyric_list_etag(&self) -> Result<()> {
+    pub fn update_lyric_list_etag(&self) -> Result<()> {
         self.0
             .execute(
                 sql::SQL_UPDATE_LYRIC_LIST_ETAG,
                 &[Value::Text(Uuid::default().to_string())],
             )
-            .map(|_| ())
+            .map_to_unit()
     }
 
-    pub(crate) fn update_playlist_list_etag(&self) -> Result<()> {
-        let tag = Uuid::default().to_string();
+    pub fn update_playlist_list_etag(&self) -> Result<()> {
         self.0
-            .execute(sql::SQL_UPDATE_PLAYLIST_LIST_ETAG, &[Value::Text(tag)])
-            .map(|_| ())
+            .execute(
+                sql::SQL_UPDATE_PLAYLIST_LIST_ETAG,
+                &[Value::Text(Uuid::default().to_string())],
+            )
+            .map_to_unit()
     }
 
-    pub(crate) fn delete_all_playlists(&self) -> Result<()> {
+    pub fn delete_all_playlists(&self) -> Result<()> {
         self.0
             .execute(sql::SQL_DELETE_ALL_PLAYLISTS, &[])
-            .inspect_err(|error| self.on_error_rollback(error))
-            .map(|_| ())
+            .map_to_unit()
     }
 
-    pub(crate) fn delete_all_lyrics(&self) -> Result<()> {
+    pub fn delete_all_lyrics(&self) -> Result<()> {
         self.0
             .execute(sql::SQL_DELETE_ALL_LYRICS, &[])
-            .inspect_err(|error| self.on_error_rollback(error))
-            .map(|_| ())
+            .map_to_unit()
     }
 
-    pub(crate) fn delete_all_members(&self) -> Result<()> {
+    pub fn delete_all_members(&self) -> Result<()> {
         self.0
             .execute(sql::SQL_DELETE_ALL_MEMBERS, &[])
-            .inspect_err(|error| self.on_error_rollback(error))
-            .map(|_| ())
+            .map_to_unit()
     }
 
-    pub(crate) fn replace_db(&self, db: &Db) -> Result<()> {
+    pub fn replace_db(&self, db: &Db) -> Result<()> {
         self.begin_transaction()?;
 
-        self.delete_all_playlists()?;
-        self.delete_all_lyrics()?;
-        self.delete_all_members()?;
-
-        db.lyrics
-            .iter()
-            .map(|lyric| self.insert_lyric(lyric))
-            .collect::<Result<Vec<_>>>()
-            .inspect_err(|error| self.on_error_rollback(error))?;
-        db.playlists
-            .iter()
-            .map(|playlist| self.insert_playlist(playlist, false))
-            .collect::<Result<Vec<_>>>()
-            .inspect_err(|error| self.on_error_rollback(error))?;
-
-        self.update_lyric_list_etag()
-            .inspect_err(|error| self.on_error_rollback(error))?;
-        self.update_playlist_list_etag()
-            .inspect_err(|error| self.on_error_rollback(error))?;
-
-        self.commit()
-    }
-
-    fn on_error_rollback<D: Display>(&self, d: D) {
-        if self.roll_back().is_err() {
-            message::rollback_failure(d);
-        }
+        self.delete_all_playlists()
+            .and_then(|_| self.delete_all_lyrics())
+            .and_then(|_| self.delete_all_members())
+            .and_then(|_| {
+                db.lyrics
+                    .iter()
+                    .map(|lyric| self.insert_lyric(lyric))
+                    .collect::<Result<Vec<_>>>()
+            })
+            .and_then(|_| {
+                db.playlists
+                    .iter()
+                    .map(|playlist| self.insert_playlist(playlist, false))
+                    .collect::<Result<Vec<_>>>()
+            })
+            .and_then(|_| self.update_lyric_list_etag())
+            .and_then(|_| self.update_playlist_list_etag())
+            .and_then(|_| self.commit())
+            .inspect_err(|error| {
+                if self.roll_back().is_err() {
+                    message::rollback_failure(error);
+                }
+            })
     }
 }
 
@@ -383,7 +380,7 @@ mod test {
             "Alles".to_owned(),
             vec![lyric_id.clone()],
         );
-        connection.insert_playlist(&playlist, true).unwrap();
+        connection.insert_playlist(&playlist, false).unwrap();
 
         let stored_playlist = connection
             .get_playlist(playlist_id.clone())

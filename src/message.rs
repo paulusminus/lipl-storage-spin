@@ -20,20 +20,6 @@ pub fn request_received(path: impl Display, method: impl Display) {
     );
 }
 
-pub fn update_playlist_failure(id: impl Display) {
-    eprintln!(
-        "{}: Failed to update title and modified for playlist with id {id}",
-        request_id()
-    );
-}
-
-pub fn insert_playlist_failure(error: impl Display) {
-    eprintln!(
-        "{}: Error while inserting new playlist: {error}",
-        request_id()
-    );
-}
-
 pub fn rollback_failure(error: impl Display) {
     eprintln!("{}: Cannot rollback {}", request_id(), error);
 }

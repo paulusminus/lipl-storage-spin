@@ -14,9 +14,9 @@ use spin_sdk::{
 };
 
 mod api;
-mod handler;
+pub mod handler;
 mod message;
-mod persistence;
+pub mod persistence;
 
 type Result<T> = std::result::Result<T, Error>;
 
