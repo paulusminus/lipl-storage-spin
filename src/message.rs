@@ -32,3 +32,7 @@ pub fn request_received(path: impl Display, method: impl Display) {
 pub fn rollback_failure(error: impl Display) {
     eprintln!("{}: Cannot rollback {}", request_id(), error);
 }
+
+pub fn dump_header(name: &str, value: &str) {
+    println!("{}: {} = {}", request_id(), name, value);
+}

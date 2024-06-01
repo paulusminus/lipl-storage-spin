@@ -1,11 +1,7 @@
 use std::{sync::OnceLock, time::Instant};
 
 use crate::api::Api;
-use model::{
-    error::Error,
-    response::no_content,
-    Uuid,
-};
+use model::{error::Error, response::no_content, Uuid};
 use spin_sdk::{
     http::{IntoResponse, Request, Response},
     http_component,
@@ -28,10 +24,22 @@ fn now() -> &'static Instant {
     NOW.get_or_init(Instant::now)
 }
 
+fn header_value<'a>(req: &'a Request, name: &'a str) -> Option<&'a str> {
+    req.headers()
+        .find(|header| header.0.to_lowercase() == name)
+        .and_then(|header| header.1.as_str())
+}
+
 /// A simple Spin HTTP component.
 #[http_component]
 fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
     message::request_received(req.path(), req.method());
+    if let Some(referer) = header_value(&req, "referer") {
+        message::dump_header("referer", referer);
+    }
+    if let Some(referer) = header_value(&req, "host") {
+        message::dump_header("host", referer);
+    }
 
     if req.path() == "/lipl/api/v1/health" {
         return Ok(no_content());
@@ -39,21 +47,21 @@ fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
 
     let api = Api::default();
     api.handle(req)
-    .map(|r| r.into_response())
-    .inspect_err(|error| {
-        eprintln!(
-            "{}: Error {} after {} milliseconds",
-            request_id(),
-            error,
-            now().elapsed().as_millis()
-        );
-    })
-    .inspect(|x| {
-        println!(
-            "{}: Success {} after {} milliseconds",
-            request_id(),
-            x.status(),
-            now().elapsed().as_millis()
-        );
-    })
+        .map(|r| r.into_response())
+        .inspect_err(|error| {
+            eprintln!(
+                "{}: Error {} after {} milliseconds",
+                request_id(),
+                error,
+                now().elapsed().as_millis()
+            );
+        })
+        .inspect(|x| {
+            println!(
+                "{}: Success {} after {} milliseconds",
+                request_id(),
+                x.status(),
+                now().elapsed().as_millis()
+            );
+        })
 }

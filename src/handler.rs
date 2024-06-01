@@ -11,16 +11,23 @@ use crate::{persistence::Connection, Result};
 
 fn connect_user(req: &Request) -> Result<Connection> {
     let connection = Connection::try_open_default(None)?;
-        let authorization_value = req.header("Authorization").ok_or(AuthenticationError::AuthenticationHeader)?;
-        let authorization_s = authorization_value.as_str().ok_or(AuthenticationError::AuthenticationHeader)?;
-        let authentication = authorization_s.parse::<Authentication>().map_err(|_| AuthenticationError::AuthenticationHeader)?;
-        match authentication {
-            Authentication::Basic(credentials) => {
-                connection.is_valid_user(&credentials.username, &credentials.password).map_err(|_| AuthenticationError::Username)?;
-            }
+    let authorization_value = req
+        .header("Authorization")
+        .ok_or(AuthenticationError::AuthenticationHeader)?;
+    let authorization_s = authorization_value
+        .as_str()
+        .ok_or(AuthenticationError::AuthenticationHeader)?;
+    let authentication = authorization_s
+        .parse::<Authentication>()
+        .map_err(|_| AuthenticationError::AuthenticationHeader)?;
+    match authentication {
+        Authentication::Basic(credentials) => {
+            connection
+                .is_valid_user(&credentials.username, &credentials.password)
+                .map_err(|_| AuthenticationError::Username)?;
         }
+    }
     Ok(connection)
-
 }
 
 pub fn get_lyric_list(req: Request, _: Params) -> Result<Response> {

@@ -59,14 +59,21 @@ impl Connection {
     }
 
     pub fn is_valid_user(&self, name: &str, password: &str) -> Result<bool> {
-        self.0.query::<User>("SELECT id, name, password FROM user WHERE name = ? AND password = ?", &[Value::Text(name.to_owned()), Value::Text(password.to_owned())])
-        .map_first()
-        .inspect(|user| {
-            if let Some(u) = user {
-                message::user_authenticated(u);
-            };
-        })
-        .map(|user| user.is_some())
+        self.0
+            .query::<User>(
+                "SELECT id, name, password FROM user WHERE name = ? AND password = ?",
+                &[
+                    Value::Text(name.to_owned()),
+                    Value::Text(password.to_owned()),
+                ],
+            )
+            .map_first()
+            .inspect(|user| {
+                if let Some(u) = user {
+                    message::user_authenticated(u);
+                };
+            })
+            .map(|user| user.is_some())
     }
 
     pub fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
