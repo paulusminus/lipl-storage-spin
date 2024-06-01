@@ -206,6 +206,31 @@ pub struct PlaylistPost {
     pub members: Vec<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct User {
+    pub id: String,
+    pub name: String,
+    pub password: String,
+}
+
+impl TryFrom<spin_sdk::sqlite::Row<'_>> for User {
+    type Error = Error;
+
+    fn try_from(row: spin_sdk::sqlite::Row<'_>) -> Result<Self> {
+        Ok(Self {
+            id: row.column("id").map(Into::into)?,
+            name: row.column("name").map(Into::into)?,
+            password: row.column("password").map(Into::into)?,
+        })
+    }
+}
+
+impl std::fmt::Display for User {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.id, self.name)
+    }
+}
+
 #[derive(Debug, Deserialize, Hash, Serialize)]
 pub struct Db {
     pub lyrics: Vec<Lyric>,

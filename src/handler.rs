@@ -1,4 +1,5 @@
-use model::error::Error;
+use model::basic_authentication::Authentication;
+use model::error::{AuthenticationError, Error};
 use spin_sdk::http::{IntoResponse, Params, Request, Response};
 
 use model::response::{
@@ -8,8 +9,22 @@ use model::{Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, TryFromJson, Uui
 
 use crate::{persistence::Connection, Result};
 
+fn connect_user(req: &Request) -> Result<Connection> {
+    let connection = Connection::try_open_default(None)?;
+        let authorization_value = req.header("Authorization").ok_or(AuthenticationError::AuthenticationHeader)?;
+        let authorization_s = authorization_value.as_str().ok_or(AuthenticationError::AuthenticationHeader)?;
+        let authentication = authorization_s.parse::<Authentication>().map_err(|_| AuthenticationError::AuthenticationHeader)?;
+        match authentication {
+            Authentication::Basic(credentials) => {
+                connection.is_valid_user(&credentials.username, &credentials.password).map_err(|_| AuthenticationError::Username)?;
+            }
+        }
+    Ok(connection)
+
+}
+
 pub fn get_lyric_list(req: Request, _: Params) -> Result<Response> {
-    let lyrics = Connection::try_open_default(None).and_then(|c| c.get_lyric_list())?;
+    let lyrics = connect_user(&req).and_then(|c| c.get_lyric_list())?;
     if Some(lyrics.etag()) == if_none_match(&req) {
         Ok(not_modified())
     } else {
@@ -22,7 +37,7 @@ pub fn get_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
         return Ok(not_found());
     };
 
-    match Connection::try_open_default(None).and_then(|c| c.get_lyric(id))? {
+    match connect_user(&req).and_then(|c| c.get_lyric(id))? {
         Some(lyric) => {
             if Some(lyric.etag()) == if_none_match(&req) {
                 Ok(not_modified())
@@ -38,39 +53,33 @@ pub fn insert_lyric(req: Request, _: Params) -> Result<impl IntoResponse> {
     let Ok(lyric) = Lyric::try_from_json(req.body()) else {
         return Ok(bad_request());
     };
-    Connection::try_open_default(None)
+    connect_user(&req)
         .and_then(|c| c.insert_lyric(&lyric))
         .map(|_| created())
 }
 
 pub fn update_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
-    let Some(id) = params.get("id") else {
-        return Ok(not_found());
-    };
-    let Ok(lyric_post) = LyricPost::try_from_json(req.body()) else {
-        return Ok(bad_request());
-    };
+    let id = params.get("id").ok_or(Error::NotFound)?;
+    let lyric_post = LyricPost::try_from_json(req.body()).map_err(|_| Error::Body)?;
     let lyric = Lyric::new(
         id.to_owned(),
         lyric_post.title.clone(),
         lyric_post.parts.clone(),
     );
-    Connection::try_open_default(None)
+    connect_user(&req)
         .and_then(|c| c.update_lyric(&lyric))
         .map(|_| no_content())
 }
 
-pub fn delete_lyric(_: Request, params: Params) -> Result<impl IntoResponse> {
-    let Some(id) = params.get("id") else {
-        return Ok(Response::new(400, ()));
-    };
-    Connection::try_open_default(None)
+pub fn delete_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
+    let id = params.get("id").ok_or(Error::NotFound)?;
+    connect_user(&req)
         .and_then(|c| c.delete_lyric(id))
         .map(|_| no_content())
 }
 
 pub fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
-    let playlists = Connection::try_open_default(None).and_then(|c| c.get_playlist_list())?;
+    let playlists = connect_user(&req).and_then(|c| c.get_playlist_list())?;
     if Some(playlists.etag()) == if_none_match(&req) {
         Ok(not_modified())
     } else {
@@ -79,10 +88,8 @@ pub fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
 }
 
 pub fn get_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
-    let Some(id) = params.get("id") else {
-        return Ok(not_found());
-    };
-    match Connection::try_open_default(None).and_then(|c| c.get_playlist(id))? {
+    let id = params.get("id").ok_or(Error::NotFound)?;
+    match connect_user(&req).and_then(|c| c.get_playlist(id))? {
         Some(playlist) => {
             if Some(playlist.etag()) == if_none_match(&req) {
                 Ok(not_modified())
@@ -95,50 +102,42 @@ pub fn get_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
 }
 
 pub fn insert_playlist(req: Request, _: Params) -> Result<impl IntoResponse> {
-    let Ok(playlist) = Playlist::try_from_json(req.body()) else {
-        return Ok(bad_request());
-    };
-    Connection::try_open_default(None)
+    let playlist = Playlist::try_from_json(req.body()).map_err(|_| Error::Body)?;
+    connect_user(&req)
         .and_then(|c| c.insert_playlist(&playlist, true))
         .map(|_| created())
 }
 
 pub fn update_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
-    let Some(id) = params.get("id") else {
-        return Ok(not_found());
-    };
-    let Ok(playlist_post) = PlaylistPost::try_from_json(req.body()) else {
-        return Ok(bad_request());
-    };
+    let id = params.get("id").ok_or(Error::NotFound)?;
+    let playlist_post = PlaylistPost::try_from_json(req.body()).map_err(|_| Error::Body)?;
     let playlist = Playlist::new(
         id.to_owned(),
         playlist_post.title.clone(),
         playlist_post.members.clone(),
     );
-    Connection::try_open_default(None)
+    connect_user(&req)
         .and_then(|c| c.update_playlist(&playlist))
         .map(|_| no_content())
 }
 
-pub fn delete_playlist(_: Request, params: Params) -> Result<impl IntoResponse> {
-    let Some(id) = params.get("id") else {
-        return Ok(not_found());
-    };
-    Connection::try_open_default(None)
+pub fn delete_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
+    let id = params.get("id").ok_or(Error::NotFound)?;
+    connect_user(&req)
         .and_then(|c| c.delete_playlist(id))
         .map(|_| no_content())
 }
 
 pub fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     let db = Db::try_from_json(req.body())?;
-    let connection = Connection::try_open_default(None)?;
+    let connection = connect_user(&req)?;
     connection.replace_db(&db)?;
 
     Ok(no_content())
 }
 
 pub fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
-    let connection = Connection::try_open_default(None)?;
+    let connection = connect_user(&req)?;
     let lyrics = connection.get_lyric_list()?;
     let playlists = connection.get_playlist_list()?;
     let db = Db { lyrics, playlists };

@@ -4,7 +4,7 @@ use spin_sdk::http::IntoResponse;
 
 use crate::{
     basic_authentication::unauthenticated,
-    response::{internal_server_error, not_found},
+    response::{bad_request, internal_server_error, not_found},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -29,6 +29,9 @@ pub enum AuthenticationError {
 pub enum Error {
     #[error("Not found")]
     NotFound,
+
+    #[error("Invalid body")]
+    Body,
 
     #[error("Utf 8 encoding")]
     Utf8(#[from] Utf8Error),
@@ -81,6 +84,7 @@ impl IntoResponse for Error {
         match self {
             Self::NotFound => not_found(),
             Self::Authentication(_) => unauthenticated(),
+            Self::Body => bad_request(),
             _ => internal_server_error(),
         }
     }

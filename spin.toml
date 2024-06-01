@@ -35,6 +35,11 @@ watch = ["src/**/*.rs", "Cargo.toml"]
 source = "../lipl-storage-test/target/wasm32-wasip1/release/lipl_storage_test.wasm"
 build = "cargo component build --release --target=wasm32-wasip1"
 workdir = "../lipl-storage-test"
+sqlite_databases = ["default"]
+
+[component.lipl-storage-spin.tool.spin-test.variables]
+lipl_username = "{{ lipl_username }}"
+lipl_password = "{{ lipl_password }}"
 
 #[component.fileserver]
 #source = { url = "https://github.com/fermyon/spin-fileserver/releases/download/v0.2.1/spin_static_fs.wasm", digest = "sha256:5f05b15f0f7cd353d390bc5ebffec7fe25c6a6d7a05b9366c86dcb1a346e9f0f" }

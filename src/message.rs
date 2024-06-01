@@ -10,6 +10,15 @@ pub fn db_connection_established() {
     );
 }
 
+pub fn user_authenticated(user: impl Display) {
+    println!(
+        "{}: User {} after {} milliseconds",
+        request_id(),
+        user,
+        now().elapsed().as_millis(),
+    );
+}
+
 pub fn request_received(path: impl Display, method: impl Display) {
     println!(
         "{}: received {} {} request after {} milliseconds",

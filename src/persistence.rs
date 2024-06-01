@@ -2,8 +2,17 @@ use spin_sdk::sqlite::Value;
 use std::fmt::Display;
 
 use crate::{message, Error, Result};
-use model::{error::ErrInto, parts::Parts, Db, Lyric, LyricId, Playlist, Uuid};
+use model::{parts::Parts, Db, Lyric, LyricId, Playlist, User, Uuid};
 
+macro_rules! and_then {
+    // Base case:
+    ($x:expr) => ($x);
+    // `$x` followed by at least one `$y,`
+    ($x:expr, $($y:expr),+) => (
+        // Call `find_min!` on the tail `$y`
+        $x.and_then(|_| and_then!($($y),+))
+    )
+}
 trait MapFirst<T: Clone> {
     fn map_first(self) -> Result<Option<T>>;
 }
@@ -49,6 +58,17 @@ impl Connection {
         self.0.execute(sql::SQL_COMMIT, &[]).map_to_unit()
     }
 
+    pub fn is_valid_user(&self, name: &str, password: &str) -> Result<bool> {
+        self.0.query::<User>("SELECT id, name, password FROM user WHERE name = ? AND password = ?", &[Value::Text(name.to_owned()), Value::Text(password.to_owned())])
+        .map_first()
+        .inspect(|user| {
+            if let Some(u) = user {
+                message::user_authenticated(u);
+            };
+        })
+        .map(|user| user.is_some())
+    }
+
     pub fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
         self.0.query::<Lyric>(sql::SQL_GET_LYRIC_LIST, &[])
     }
@@ -57,42 +77,37 @@ impl Connection {
     where
         D: Display,
     {
-        let params = vec![Value::Text(id.to_string())];
         self.0
-            .query::<Lyric>(sql::SQL_GET_LYRIC, &params)
+            .query::<Lyric>(sql::SQL_GET_LYRIC, &[Value::Text(id.to_string())])
             .map_first()
-            .err_into()
     }
 
     pub fn delete_lyric<D>(&self, id: D) -> Result<bool>
     where
         D: Display,
     {
-        let params = vec![Value::Text(id.to_string())];
         self.0
-            .execute(sql::SQL_DELETE_LYRIC, &params)
+            .execute(sql::SQL_DELETE_LYRIC, &[Value::Text(id.to_string())])
             .map(|c| c > 0)
     }
 
     pub fn update_lyric(&self, lyric: &Lyric) -> Result<bool> {
-        let params = vec![
+        let params = &[
             Value::Text(lyric.title.clone()),
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
             Value::Text(lyric.id.clone()),
         ];
-        self.0
-            .execute(sql::SQL_UPDATE_LYRIC, &params)
-            .map(|c| c > 0)
+        self.0.execute(sql::SQL_UPDATE_LYRIC, params).map(|c| c > 0)
     }
 
     pub fn insert_lyric(&self, lyric: &Lyric) -> Result<()> {
-        let params = vec![
+        let params = &[
             Value::Text(lyric.id.clone()),
             Value::Text(lyric.title.clone()),
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
             Value::Text(Uuid::default().to_string()),
         ];
-        self.0.execute(sql::SQL_INSERT_LYRIC, &params).map_to_unit()
+        self.0.execute(sql::SQL_INSERT_LYRIC, params).map_to_unit()
     }
 
     fn get_playlist_members<D>(&self, playlist_id: D) -> Result<Vec<String>>
@@ -108,22 +123,28 @@ impl Connection {
     }
 
     pub fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
-        let mut playlists = self.0.query::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])?;
-
-        for playlist in playlists.iter_mut() {
-            playlist.members = self.get_playlist_members(playlist.id.clone())?;
-        }
-        Ok(playlists)
+        self.0
+            .query::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])
+            .and_then(|playlists| {
+                playlists
+                    .iter()
+                    .map(|playlist| {
+                        self.get_playlist_members(playlist.id.clone())
+                            .map(|members| {
+                                Playlist::new(playlist.id.clone(), playlist.title.clone(), members)
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
     }
 
     pub fn get_playlist<D>(&self, id: D) -> Result<Option<Playlist>>
     where
         D: Display,
     {
-        let params = vec![Value::Text(id.to_string())];
         let result = self
             .0
-            .query::<Playlist>(sql::SQL_GET_PLAYLIST, &params)
+            .query::<Playlist>(sql::SQL_GET_PLAYLIST, &[Value::Text(id.to_string())])
             .map_first()?;
         match result {
             Some(mut playlist) => {
@@ -152,14 +173,13 @@ impl Connection {
         lyric_ids
             .iter()
             .enumerate()
-            .map(|(i, s)| (i + 1, s))
             .map(|(i, lyric_id)| {
                 self.0.execute(
                     sql::SQL_INSERT_MEMBER,
                     &[
                         Value::Text(playlist_id.into()),
                         Value::Text(lyric_id.clone()),
-                        Value::Integer(i.try_into().unwrap()),
+                        Value::Integer((i + 1).try_into().unwrap()),
                     ],
                 )
             })
@@ -169,24 +189,25 @@ impl Connection {
 
     pub fn update_playlist(&self, playlist: &Playlist) -> Result<()> {
         self.begin_transaction()?;
-        self.delete_members(&playlist.id)
-            .and_then(|_| {
-                self.0.execute(
-                    sql::SQL_UPDATE_PLAYLIST,
-                    &[
-                        Value::Text(playlist.title.clone()),
-                        Value::Text(Uuid::default().to_string()),
-                        Value::Text(playlist.id.clone()),
-                    ],
-                )
-            })
-            .and_then(|_| self.insert_members(&playlist.id, &playlist.members))
-            .and_then(|_| self.commit())
-            .inspect_err(|error| {
-                if self.roll_back().is_err() {
-                    message::rollback_failure(error);
-                }
-            })
+
+        and_then!(
+            self.delete_members(&playlist.id),
+            self.0.execute(
+                sql::SQL_UPDATE_PLAYLIST,
+                &[
+                    Value::Text(playlist.title.clone()),
+                    Value::Text(Uuid::default().to_string()),
+                    Value::Text(playlist.id.clone()),
+                ],
+            ),
+            self.insert_members(&playlist.id, &playlist.members),
+            self.commit()
+        )
+        .inspect_err(|error| {
+            if self.roll_back().is_err() {
+                message::rollback_failure(error);
+            }
+        })
     }
 
     pub fn insert_playlist(&self, playlist: &Playlist, transact: bool) -> Result<()> {
@@ -194,22 +215,23 @@ impl Connection {
             self.begin_transaction()?;
         }
 
-        self.0
-            .execute(
+        and_then!(
+            self.0.execute(
                 sql::SQL_INSERT_PLAYLIST,
                 &[
                     Value::Text(playlist.id.clone()),
                     Value::Text(playlist.title.clone()),
                     Value::Text(Uuid::default().to_string()),
-                ],
-            )
-            .and_then(|_| self.insert_members(&playlist.id, &playlist.members))
-            .and_then(|_| if transact { self.commit() } else { Ok(()) })
-            .inspect_err(|error| {
-                if transact && self.roll_back().is_err() {
-                    message::rollback_failure(error);
-                }
-            })
+                ]
+            ),
+            self.insert_members(&playlist.id, &playlist.members),
+            if transact { self.commit() } else { Ok(()) }
+        )
+        .inspect_err(|error| {
+            if transact && self.roll_back().is_err() {
+                message::rollback_failure(error);
+            }
+        })
     }
 
     pub fn update_lyric_list_etag(&self) -> Result<()> {
@@ -230,50 +252,46 @@ impl Connection {
             .map_to_unit()
     }
 
-    pub fn delete_all_playlists(&self) -> Result<()> {
-        self.0
-            .execute(sql::SQL_DELETE_ALL_PLAYLISTS, &[])
-            .map_to_unit()
+    fn delete_all(&self, sql: &str) -> Result<()> {
+        self.0.execute(sql, &[]).map_to_unit()
     }
 
     pub fn delete_all_lyrics(&self) -> Result<()> {
-        self.0
-            .execute(sql::SQL_DELETE_ALL_LYRICS, &[])
-            .map_to_unit()
+        self.delete_all(sql::SQL_DELETE_ALL_LYRICS)
+    }
+
+    pub fn delete_all_playlists(&self) -> Result<()> {
+        self.delete_all(sql::SQL_DELETE_ALL_PLAYLISTS)
     }
 
     pub fn delete_all_members(&self) -> Result<()> {
-        self.0
-            .execute(sql::SQL_DELETE_ALL_MEMBERS, &[])
-            .map_to_unit()
+        self.delete_all(sql::SQL_DELETE_ALL_MEMBERS)
     }
 
     pub fn replace_db(&self, db: &Db) -> Result<()> {
         self.begin_transaction()?;
 
-        self.delete_all_playlists()
-            .and_then(|_| self.delete_all_lyrics())
-            .and_then(|_| self.delete_all_members())
-            .and_then(|_| {
-                db.lyrics
-                    .iter()
-                    .map(|lyric| self.insert_lyric(lyric))
-                    .collect::<Result<Vec<_>>>()
-            })
-            .and_then(|_| {
-                db.playlists
-                    .iter()
-                    .map(|playlist| self.insert_playlist(playlist, false))
-                    .collect::<Result<Vec<_>>>()
-            })
-            .and_then(|_| self.update_lyric_list_etag())
-            .and_then(|_| self.update_playlist_list_etag())
-            .and_then(|_| self.commit())
-            .inspect_err(|error| {
-                if self.roll_back().is_err() {
-                    message::rollback_failure(error);
-                }
-            })
+        and_then!(
+            self.delete_all_playlists(),
+            self.delete_all_lyrics(),
+            self.delete_all_members(),
+            db.lyrics
+                .iter()
+                .map(|lyric| self.insert_lyric(lyric))
+                .collect::<Result<Vec<_>>>(),
+            db.playlists
+                .iter()
+                .map(|playlist| self.insert_playlist(playlist, false))
+                .collect::<Result<Vec<_>>>(),
+            self.update_lyric_list_etag(),
+            self.update_playlist_list_etag(),
+            self.commit()
+        )
+        .inspect_err(|error| {
+            if self.roll_back().is_err() {
+                message::rollback_failure(error);
+            }
+        })
     }
 }
 
@@ -317,7 +335,7 @@ mod sql {
 
 #[cfg(test)]
 mod test {
-    use std::{thread, time::Duration};
+    use std::{env, thread, time::Duration};
 
     use model::{error::Error, Db, Lyric, Playlist, TryFromJson, Uuid};
     use spin_sdk::sqlite::Row;
@@ -437,7 +455,8 @@ mod test {
                 "list_etag".to_owned(),
                 "lyric".to_owned(),
                 "member".to_owned(),
-                "playlist".to_owned()
+                "playlist".to_owned(),
+                "user".to_owned(),
             ]
         );
     }
@@ -454,5 +473,13 @@ mod test {
 
         let playlists = connection.get_playlist_list().unwrap();
         assert_eq!(playlists.len(), 1);
+    }
+
+    #[test]
+    fn valid_user() {
+        let connection = open_database();
+        let username = env::var("LIPL_USERNAME").unwrap();
+        let is_valid = connection.is_valid_user(&username, "password").unwrap();
+        assert!(is_valid);
     }
 }
