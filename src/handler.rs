@@ -31,7 +31,7 @@ fn connect_user(req: &Request) -> Result<Connection> {
 }
 
 pub fn get_lyric_list(req: Request, _: Params) -> Result<Response> {
-    let lyrics = connect_user(&req).and_then(|c| c.get_lyric_list())?;
+    let lyrics = connect_user(&req).and_then(|c| c.select_lyric())?;
     if Some(lyrics.etag()) == if_none_match(&req) {
         Ok(not_modified())
     } else {
@@ -44,7 +44,7 @@ pub fn get_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
         return Ok(not_found());
     };
 
-    match connect_user(&req).and_then(|c| c.get_lyric(id))? {
+    match connect_user(&req).and_then(|c| c.select_lyric_by_id(id))? {
         Some(lyric) => {
             if Some(lyric.etag()) == if_none_match(&req) {
                 Ok(not_modified())
@@ -86,7 +86,7 @@ pub fn delete_lyric(req: Request, params: Params) -> Result<impl IntoResponse> {
 }
 
 pub fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
-    let playlists = connect_user(&req).and_then(|c| c.get_playlist_list())?;
+    let playlists = connect_user(&req).and_then(|c| c.select_playlist())?;
     if Some(playlists.etag()) == if_none_match(&req) {
         Ok(not_modified())
     } else {
@@ -96,7 +96,7 @@ pub fn get_playlist_list(req: Request, _: Params) -> Result<impl IntoResponse> {
 
 pub fn get_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
     let id = params.get("id").ok_or(Error::NotFound)?;
-    match connect_user(&req).and_then(|c| c.get_playlist(id))? {
+    match connect_user(&req).and_then(|c| c.select_playlist_by_id(id))? {
         Some(playlist) => {
             if Some(playlist.etag()) == if_none_match(&req) {
                 Ok(not_modified())
@@ -131,7 +131,7 @@ pub fn update_playlist(req: Request, params: Params) -> Result<impl IntoResponse
 pub fn delete_playlist(req: Request, params: Params) -> Result<impl IntoResponse> {
     let id = params.get("id").ok_or(Error::NotFound)?;
     connect_user(&req)
-        .and_then(|c| c.delete_playlist(id))
+        .and_then(|c| c.delete_playlist_by_id(id))
         .map(|_| no_content())
 }
 
@@ -145,8 +145,8 @@ pub fn replace_db(req: Request, _: Params) -> Result<impl IntoResponse> {
 
 pub fn get_db(req: Request, _: Params) -> Result<impl IntoResponse> {
     let connection = connect_user(&req)?;
-    let lyrics = connection.get_lyric_list()?;
-    let playlists = connection.get_playlist_list()?;
+    let lyrics = connection.select_lyric()?;
+    let playlists = connection.select_playlist()?;
     let db = Db { lyrics, playlists };
     Ok(JsonResponse::new(db, req))
 }
@@ -156,4 +156,10 @@ pub fn get_uuid(req: Request, params: Params) -> Result<impl IntoResponse> {
     let uuid = Uuid::from_uuid_str(uuid_str)?;
 
     Ok(JsonResponse::new(uuid.to_string(), req))
+}
+
+pub fn get_user_list(req: Request, _: Params) -> Result<impl IntoResponse> {
+    let connection = connect_user(&req)?;
+    let users = connection.select_user()?;
+    Ok(JsonResponse::new(users, req))
 }

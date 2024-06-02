@@ -12,7 +12,7 @@ where
 }
 
 impl<E: From<Error>> DbConnection<E> {
-    pub fn try_open_default(migrations: Option<&'static str>) -> Result<Self, E> {
+    pub fn try_open_default(migrations: Option<&str>) -> Result<Self, E> {
         let connection = rusqlite::Connection::open_in_memory()?;
         if let Some(m) = migrations {
             connection.execute_batch(m)?;
@@ -93,4 +93,13 @@ fn rusqlite_parameters(parameters: &[Value]) -> impl Params {
             .map(rusqlite_parameter)
             .collect::<Vec<_>>(),
     )
+}
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn open_database() {
+        super::DbConnection::<Box<dyn std::error::Error>>::try_open_default(None).unwrap();
+    }
 }

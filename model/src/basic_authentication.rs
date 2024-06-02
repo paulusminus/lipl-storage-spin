@@ -3,7 +3,7 @@ use std::str::from_utf8;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use spin_sdk::http::{IntoResponse, Response, ResponseBuilder};
 
-use crate::{error::AuthenticationError, Error, Result};
+use crate::error::AuthenticationError;
 
 pub fn unauthenticated() -> Response {
     ResponseBuilder::new(401)
@@ -19,12 +19,11 @@ pub struct Credentials {
 }
 
 impl std::str::FromStr for Credentials {
-    type Err = Error;
+    type Err = AuthenticationError;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let decoded = BASE64_STANDARD
-            .decode(s)
-            .map_err(AuthenticationError::from)?;
+            .decode(s)?;
         let decoded_s = from_utf8(decoded.as_slice())?;
         let mut splitted = decoded_s.split(':');
         let username = splitted.next().ok_or(AuthenticationError::Username)?;
@@ -57,13 +56,13 @@ impl std::fmt::Display for Authentication {
 }
 
 impl std::str::FromStr for Authentication {
-    type Err = Error;
+    type Err = AuthenticationError;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(stripped) = s.strip_prefix("Basic ") {
             stripped.parse::<Credentials>().map(Authentication::Basic)
         } else {
-            Err(Error::from(AuthenticationError::Unsupported))
+            Err(AuthenticationError::Unsupported)
         }
     }
 }

@@ -10,7 +10,7 @@ where
 }
 
 impl<E: From<Error>> DbConnection<E> {
-    pub fn try_open_default(migrations: Option<&'static str>) -> Result<Self, E> {
+    pub fn try_open_default(migrations: Option<&str>) -> Result<Self, E> {
         let connection = spin_sdk::sqlite::Connection::open_default()?;
         if migrations.is_some() {
             unimplemented!();

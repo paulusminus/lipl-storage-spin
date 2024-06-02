@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 #[cfg(wasm)]
 #[cfg_attr(wasm, path = "spin_sqlite.rs")]
 mod connection;

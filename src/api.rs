@@ -38,7 +38,8 @@ impl Default for Api {
             DELETE "/lipl/api/v1/playlist/:id" => handler::delete_playlist,
             GET "/lipl/api/v1/db" => handler::get_db,
             POST "/lipl/api/v1/db" => handler::replace_db,
-            GET "/lipl/api/v1/uuid/:id" => handler::get_uuid
+            GET "/lipl/api/v1/uuid/:id" => handler::get_uuid,
+            GET "/lipl/api/v1/user" => handler::get_user_list
         );
         Self { router }
     }

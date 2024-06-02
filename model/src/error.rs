@@ -23,6 +23,9 @@ pub enum AuthenticationError {
 
     #[error("Decode base64")]
     DecodeBase64(#[from] base64::DecodeError),
+
+    #[error("Utf8: {0}")]
+    Utf8(#[from] Utf8Error),
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -11,7 +11,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{error::Error, parts::Parts};
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub mod basic_authentication;
 pub mod error;
@@ -206,10 +206,11 @@ pub struct PlaylistPost {
     pub members: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct User {
     pub id: String,
     pub name: String,
+    #[serde(skip)]
     pub password: String,
 }
 

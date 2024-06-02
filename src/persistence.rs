@@ -61,7 +61,7 @@ impl Connection {
     pub fn is_valid_user(&self, name: &str, password: &str) -> Result<bool> {
         self.0
             .query::<User>(
-                "SELECT id, name, password FROM user WHERE name = ? AND password = ?",
+                sql::SQL_SELECT_USER_BY_NAME_AND_PASSWORD,
                 &[
                     Value::Text(name.to_owned()),
                     Value::Text(password.to_owned()),
@@ -76,16 +76,20 @@ impl Connection {
             .map(|user| user.is_some())
     }
 
-    pub fn get_lyric_list(&self) -> Result<Vec<Lyric>> {
-        self.0.query::<Lyric>(sql::SQL_GET_LYRIC_LIST, &[])
+    pub fn select_user(&self) -> Result<Vec<User>> {
+        self.0.query::<User>(sql::SQL_SELECT_USER, &[])
     }
 
-    pub fn get_lyric<D>(&self, id: D) -> Result<Option<Lyric>>
+    pub fn select_lyric(&self) -> Result<Vec<Lyric>> {
+        self.0.query::<Lyric>(sql::SQL_SELECT_LYRIC_LIST, &[])
+    }
+
+    pub fn select_lyric_by_id<D>(&self, id: D) -> Result<Option<Lyric>>
     where
         D: Display,
     {
         self.0
-            .query::<Lyric>(sql::SQL_GET_LYRIC, &[Value::Text(id.to_string())])
+            .query::<Lyric>(sql::SQL_SELECT_LYRIC, &[Value::Text(id.to_string())])
             .map_first()
     }
 
@@ -117,35 +121,35 @@ impl Connection {
         self.0.execute(sql::SQL_INSERT_LYRIC, params).map_to_unit()
     }
 
-    fn get_playlist_members<D>(&self, playlist_id: D) -> Result<Vec<String>>
+    fn select_members_by_playlist_id<D>(&self, playlist_id: D) -> Result<Vec<String>>
     where
         D: Display,
     {
         self.0
             .query::<LyricId>(
-                sql::SQL_GET_MEMBER_LYRICS,
+                sql::SQL_SELECT_MEMBER_LYRICS,
                 &[Value::Text(playlist_id.to_string())],
             )
             .map(|id_list| id_list.into_iter().map(|lyric_id| lyric_id.id()).collect())
     }
 
-    pub fn get_playlist_list(&self) -> Result<Vec<Playlist>> {
+    pub fn select_playlist(&self) -> Result<Vec<Playlist>> {
         self.0
-            .query::<Playlist>(sql::SQL_GET_PLAYLIST_LIST, &[])
+            .query::<Playlist>(sql::SQL_SELECT_PLAYLIST_LIST, &[])
             .and_then(|playlists| {
                 playlists
-                    .iter()
+                    .into_iter()
                     .map(|playlist| {
-                        self.get_playlist_members(playlist.id.clone())
+                        self.select_members_by_playlist_id(playlist.id.clone())
                             .map(|members| {
-                                Playlist::new(playlist.id.clone(), playlist.title.clone(), members)
+                                Playlist::new(playlist.id, playlist.title, members)
                             })
                     })
                     .collect::<Result<Vec<_>>>()
             })
     }
 
-    pub fn get_playlist<D>(&self, id: D) -> Result<Option<Playlist>>
+    pub fn select_playlist_by_id<D>(&self, id: D) -> Result<Option<Playlist>>
     where
         D: Display,
     {
@@ -155,14 +159,14 @@ impl Connection {
             .map_first()?;
         match result {
             Some(mut playlist) => {
-                playlist.members = self.get_playlist_members(&playlist.id)?;
+                playlist.members = self.select_members_by_playlist_id(&playlist.id)?;
                 Ok(Some(playlist.clone()))
             }
             None => Ok(None),
         }
     }
 
-    pub fn delete_playlist<D>(&self, id: D) -> Result<()>
+    pub fn delete_playlist_by_id<D>(&self, id: D) -> Result<()>
     where
         D: Display,
     {
@@ -171,7 +175,7 @@ impl Connection {
             .map_to_unit()
     }
 
-    pub fn delete_members(&self, playlist_id: &str) -> Result<i64> {
+    pub fn delete_members_by_playlist_id(&self, playlist_id: &str) -> Result<i64> {
         self.0
             .execute(sql::SQL_DELETE_MEMBER, &[Value::Text(playlist_id.into())])
     }
@@ -198,7 +202,7 @@ impl Connection {
         self.begin_transaction()?;
 
         and_then!(
-            self.delete_members(&playlist.id),
+            self.delete_members_by_playlist_id(&playlist.id),
             self.0.execute(
                 sql::SQL_UPDATE_PLAYLIST,
                 &[
@@ -307,15 +311,15 @@ mod sql {
     pub const SQL_ROLLBACK: &str = "ROLLBACK";
     pub const SQL_COMMIT: &str = "COMMIT";
 
-    pub const SQL_GET_LYRIC_LIST: &str =
+    pub const SQL_SELECT_LYRIC_LIST: &str =
         "SELECT id, title, parts, created, modified, etag FROM lyric ORDER BY title";
-    pub const SQL_GET_LYRIC: &str =
+    pub const SQL_SELECT_LYRIC: &str =
         "SELECT id, title, parts, created, modified, etag FROM lyric WHERE Id=?";
     pub const SQL_INSERT_LYRIC: &str = "INSERT INTO lyric (id, title, parts, created, modified, etag) VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?)";
     pub const SQL_UPDATE_LYRIC: &str = "UPDATE lyric SET title=?, parts=?, modified=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE Id=?";
     pub const SQL_DELETE_LYRIC: &str = "DELETE FROM lyric WHERE Id=?";
 
-    pub const SQL_GET_PLAYLIST_LIST: &str =
+    pub const SQL_SELECT_PLAYLIST_LIST: &str =
         "SELECT id, title, created, modified, etag FROM playlist ORDER BY title";
     pub const SQL_GET_PLAYLIST: &str =
         "SELECT id, title, created, modified, etag FROM playlist WHERE Id=?";
@@ -324,7 +328,7 @@ mod sql {
     pub const SQL_UPDATE_PLAYLIST: &str = "UPDATE playlist SET title = ?, modified = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), etag = ? WHERE id = ?";
     pub const SQL_DELETE_PLAYLIST: &str = "DELETE FROM playlist WHERE Id=?";
 
-    pub const SQL_GET_MEMBER_LYRICS: &str =
+    pub const SQL_SELECT_MEMBER_LYRICS: &str =
         "SELECT lyric_id FROM member WHERE playlist_id = ? ORDER BY ordering";
     pub const SQL_INSERT_MEMBER: &str =
         "INSERT INTO member (playlist_id, lyric_id, ordering) VALUES (?, ?, ?)";
@@ -338,6 +342,9 @@ mod sql {
     pub const SQL_DELETE_ALL_PLAYLISTS: &str = "DELETE FROM playlist";
     pub const SQL_DELETE_ALL_LYRICS: &str = "DELETE FROM lyric";
     pub const SQL_DELETE_ALL_MEMBERS: &str = "DELETE FROM member";
+
+    pub const SQL_SELECT_USER: &str = "SELECT id, name, password FROM user";
+    pub const SQL_SELECT_USER_BY_NAME_AND_PASSWORD: &str = "SELECT id, name, password FROM user WHERE name = ? AND password = ?";
 }
 
 #[cfg(test)]
@@ -368,7 +375,7 @@ mod test {
         let mut lyric = Lyric::new(id.clone(), "Zie maar hoe je het doet".to_owned(), vec![]);
         connection.insert_lyric(&lyric).unwrap();
 
-        let stored_lyric = connection.get_lyric(id.clone()).unwrap().unwrap();
+        let stored_lyric = connection.select_lyric_by_id(id.clone()).unwrap().unwrap();
         assert!(stored_lyric.created.is_some());
         assert!(stored_lyric.modified.is_some());
         assert!(stored_lyric.etag.is_some());
@@ -376,7 +383,7 @@ mod test {
         "Hallo allemaal".clone_into(&mut lyric.title);
         thread::sleep(Duration::from_millis(5));
         if connection.update_lyric(&lyric).unwrap() {
-            let lyric = connection.get_lyric(id.clone()).unwrap().unwrap();
+            let lyric = connection.select_lyric_by_id(id.clone()).unwrap().unwrap();
             println!("created: {}", lyric.created.unwrap());
             println!("modified: {}", lyric.modified.unwrap());
         };
@@ -408,7 +415,7 @@ mod test {
         connection.insert_playlist(&playlist, false).unwrap();
 
         let stored_playlist = connection
-            .get_playlist(playlist_id.clone())
+            .select_playlist_by_id(playlist_id.clone())
             .unwrap()
             .unwrap();
         assert!(stored_playlist.created.is_some());
@@ -418,7 +425,7 @@ mod test {
         connection.delete_lyric(lyric_id.clone()).unwrap();
 
         let without_lyric = connection
-            .get_playlist(playlist_id.clone())
+            .select_playlist_by_id(playlist_id.clone())
             .unwrap()
             .unwrap();
         assert!(without_lyric.members.is_empty());
@@ -475,10 +482,10 @@ mod test {
         let db = Db::try_from_json(include_bytes!("../data/db.json")).unwrap();
         connection.replace_db(&db).unwrap();
 
-        let lyrics = connection.get_lyric_list().unwrap();
+        let lyrics = connection.select_lyric().unwrap();
         assert_eq!(lyrics.len(), 57);
 
-        let playlists = connection.get_playlist_list().unwrap();
+        let playlists = connection.select_playlist().unwrap();
         assert_eq!(playlists.len(), 1);
     }
 
