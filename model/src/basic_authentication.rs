@@ -22,8 +22,7 @@ impl std::str::FromStr for Credentials {
     type Err = AuthenticationError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let decoded = BASE64_STANDARD
-            .decode(s)?;
+        let decoded = BASE64_STANDARD.decode(s)?;
         let decoded_s = from_utf8(decoded.as_slice())?;
         let mut splitted = decoded_s.split(':');
         let username = splitted.next().ok_or(AuthenticationError::Username)?;

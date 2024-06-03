@@ -141,9 +141,7 @@ impl Connection {
                     .into_iter()
                     .map(|playlist| {
                         self.select_members_by_playlist_id(playlist.id.clone())
-                            .map(|members| {
-                                Playlist::new(playlist.id, playlist.title, members)
-                            })
+                            .map(|members| Playlist::new(playlist.id, playlist.title, members))
                     })
                     .collect::<Result<Vec<_>>>()
             })
@@ -344,7 +342,8 @@ mod sql {
     pub const SQL_DELETE_ALL_MEMBERS: &str = "DELETE FROM member";
 
     pub const SQL_SELECT_USER: &str = "SELECT id, name, password FROM user";
-    pub const SQL_SELECT_USER_BY_NAME_AND_PASSWORD: &str = "SELECT id, name, password FROM user WHERE name = ? AND password = ?";
+    pub const SQL_SELECT_USER_BY_NAME_AND_PASSWORD: &str =
+        "SELECT id, name, password FROM user WHERE name = ? AND password = ?";
 }
 
 #[cfg(test)]
