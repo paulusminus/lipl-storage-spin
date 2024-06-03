@@ -19,7 +19,7 @@ lto = true
 [dependencies]
 model = { path = "model/" }
 spin-sdk = "3.0.1"
-spin-sqlite-connection = "0.1.1"
+spin-sqlite-connection = { version = "0.2.0", path = "spin-sqlite-connection" }
 
 [workspace.package]
 authors = ["paulusminus <info@paulmin.nl>"]

@@ -8,4 +8,4 @@ mod connection;
 #[cfg_attr(not_wasm, path = "rusqlite.rs")]
 mod connection;
 
-pub use connection::DbConnection;
+pub use connection::SqliteConnection;

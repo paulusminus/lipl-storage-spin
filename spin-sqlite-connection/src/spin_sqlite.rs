@@ -1,7 +1,7 @@
 use spin_sdk::sqlite::{Error, QueryResult, Row, Value};
 use std::marker::PhantomData;
 
-pub struct DbConnection<E>
+pub struct SqliteConnection<E>
 where
     E: From<Error>,
 {
@@ -9,7 +9,7 @@ where
     phantomdata: PhantomData<E>,
 }
 
-impl<E: From<Error>> DbConnection<E> {
+impl<E: From<Error>> SqliteConnection<E> {
     pub fn try_open_default(migrations: Option<&str>) -> Result<Self, E> {
         let connection = spin_sdk::sqlite::Connection::open_default()?;
         if migrations.is_some() {

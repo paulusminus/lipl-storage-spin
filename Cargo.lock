@@ -418,7 +418,7 @@ version = "0.8.6"
 dependencies = [
  "model",
  "spin-sdk",
- "spin-sqlite-connection 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spin-sqlite-connection",
 ]
 
 [[package]]
@@ -688,18 +688,7 @@ dependencies = [
 
 [[package]]
 name = "spin-sqlite-connection"
-version = "0.1.1"
-dependencies = [
- "cfg_aliases",
- "rusqlite",
- "spin-sdk",
-]
-
-[[package]]
-name = "spin-sqlite-connection"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc2f57656e0f235fbc2d4be72d430309b250a8e2fe823bebc470773c56f87ab"
+version = "0.2.0"
 dependencies = [
  "cfg_aliases",
  "rusqlite",

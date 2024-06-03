@@ -3,7 +3,7 @@ use std::{marker::PhantomData, str::from_utf8};
 use rusqlite::{params_from_iter, types::ValueRef, Error, Params};
 use spin_sdk::sqlite::{QueryResult, Row, RowResult, Value};
 
-pub struct DbConnection<E>
+pub struct SqliteConnection<E>
 where
     E: From<Error>,
 {
@@ -11,7 +11,7 @@ where
     phantomdata: PhantomData<E>,
 }
 
-impl<E: From<Error>> DbConnection<E> {
+impl<E: From<Error>> SqliteConnection<E> {
     pub fn try_open_default(migrations: Option<&str>) -> Result<Self, E> {
         let connection = rusqlite::Connection::open_in_memory()?;
         if let Some(m) = migrations {
@@ -100,6 +100,6 @@ mod test {
 
     #[test]
     fn open_database() {
-        super::DbConnection::<Box<dyn std::error::Error>>::try_open_default(None).unwrap();
+        super::SqliteConnection::<Box<dyn std::error::Error>>::try_open_default(None).unwrap();
     }
 }

@@ -1,5 +1,6 @@
-use spin_sdk::sqlite::Value;
 use std::fmt::Display;
+use spin_sdk::sqlite::Value;
+use spin_sqlite_connection::SqliteConnection;
 
 use crate::{message, Error, Result};
 use model::{parts::Parts, Db, Lyric, LyricId, Playlist, User, Uuid};
@@ -13,49 +14,34 @@ macro_rules! and_then {
         $x.and_then(|_| and_then!($($y),+))
     )
 }
-trait MapFirst<T: Clone> {
-    fn map_first(self) -> Result<Option<T>>;
+
+fn first<T: Clone>(list: Vec<T>) -> Option<T> {
+    list.first().cloned()
 }
 
-impl<T: Clone> MapFirst<T> for Result<Vec<T>> {
-    fn map_first(self) -> Result<Option<T>> {
-        self.map(|list| list.first().cloned())
-    }
-}
+fn unit<T>(_: T) {}
 
-trait MapToUnit {
-    fn map_to_unit(self) -> Result<()>;
-}
-
-impl<T> MapToUnit for Result<T> {
-    fn map_to_unit(self) -> Result<()> {
-        self.map(|_| ())
-    }
-}
-
-pub struct Connection(spin_sqlite_connection::DbConnection<Error>);
+pub struct Connection(SqliteConnection<Error>);
 
 impl Connection {
     pub fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
         let connection =
-            spin_sqlite_connection::DbConnection::try_open_default(migrations).map(Self)?;
+            SqliteConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
-        connection.0.execute("PRAGMA foreign_keys = ON", &[])?;
+        connection.0.execute(sql::SQL_FOREIGN_KEYS_ON, &[])?;
         Ok(connection)
     }
 
     pub fn begin_transaction(&self) -> Result<()> {
-        self.0
-            .execute(sql::SQL_BEGIN_TRANSACTION, &[])
-            .map_to_unit()
+        self.0.execute(sql::SQL_BEGIN_TRANSACTION, &[]).map(unit)
     }
 
     pub fn roll_back(&self) -> Result<()> {
-        self.0.execute(sql::SQL_ROLLBACK, &[]).map_to_unit()
+        self.0.execute(sql::SQL_ROLLBACK, &[]).map(unit)
     }
 
     pub fn commit(&self) -> Result<()> {
-        self.0.execute(sql::SQL_COMMIT, &[]).map_to_unit()
+        self.0.execute(sql::SQL_COMMIT, &[]).map(unit)
     }
 
     pub fn is_valid_user(&self, name: &str, password: &str) -> Result<bool> {
@@ -67,7 +53,7 @@ impl Connection {
                     Value::Text(password.to_owned()),
                 ],
             )
-            .map_first()
+            .map(first)
             .inspect(|user| {
                 if let Some(u) = user {
                     message::user_authenticated(u);
@@ -90,7 +76,7 @@ impl Connection {
     {
         self.0
             .query::<Lyric>(sql::SQL_SELECT_LYRIC, &[Value::Text(id.to_string())])
-            .map_first()
+            .map(first)
     }
 
     pub fn delete_lyric<D>(&self, id: D) -> Result<bool>
@@ -118,7 +104,7 @@ impl Connection {
             Value::Text(Parts::from(lyric.parts.clone()).to_text()),
             Value::Text(Uuid::default().to_string()),
         ];
-        self.0.execute(sql::SQL_INSERT_LYRIC, params).map_to_unit()
+        self.0.execute(sql::SQL_INSERT_LYRIC, params).map(unit)
     }
 
     fn select_members_by_playlist_id<D>(&self, playlist_id: D) -> Result<Vec<String>>
@@ -139,9 +125,12 @@ impl Connection {
             .and_then(|playlists| {
                 playlists
                     .into_iter()
-                    .map(|playlist| {
+                    .map(|mut playlist| {
                         self.select_members_by_playlist_id(playlist.id.clone())
-                            .map(|members| Playlist::new(playlist.id, playlist.title, members))
+                            .map(|members| {
+                                playlist.members = members;
+                                playlist
+                            })
                     })
                     .collect::<Result<Vec<_>>>()
             })
@@ -151,17 +140,19 @@ impl Connection {
     where
         D: Display,
     {
-        let result = self
-            .0
+        self.0
             .query::<Playlist>(sql::SQL_GET_PLAYLIST, &[Value::Text(id.to_string())])
-            .map_first()?;
-        match result {
-            Some(mut playlist) => {
-                playlist.members = self.select_members_by_playlist_id(&playlist.id)?;
-                Ok(Some(playlist.clone()))
-            }
-            None => Ok(None),
-        }
+            .map(first)
+            .and_then(|result| match result {
+                Some(mut playlist) => {
+                    self.select_members_by_playlist_id(&playlist.id)
+                        .map(|members| {
+                            playlist.members = members;
+                            Some(playlist)
+                        })
+                }
+                None => Ok(None),
+            })
     }
 
     pub fn delete_playlist_by_id<D>(&self, id: D) -> Result<()>
@@ -170,7 +161,7 @@ impl Connection {
     {
         self.0
             .execute(sql::SQL_DELETE_PLAYLIST, &[Value::Text(id.to_string())])
-            .map_to_unit()
+            .map(unit)
     }
 
     pub fn delete_members_by_playlist_id(&self, playlist_id: &str) -> Result<i64> {
@@ -193,7 +184,7 @@ impl Connection {
                 )
             })
             .collect::<Result<Vec<_>>>()
-            .map_to_unit()
+            .map(unit)
     }
 
     pub fn update_playlist(&self, playlist: &Playlist) -> Result<()> {
@@ -249,7 +240,7 @@ impl Connection {
                 sql::SQL_UPDATE_LYRIC_LIST_ETAG,
                 &[Value::Text(Uuid::default().to_string())],
             )
-            .map_to_unit()
+            .map(unit)
     }
 
     pub fn update_playlist_list_etag(&self) -> Result<()> {
@@ -258,11 +249,11 @@ impl Connection {
                 sql::SQL_UPDATE_PLAYLIST_LIST_ETAG,
                 &[Value::Text(Uuid::default().to_string())],
             )
-            .map_to_unit()
+            .map(unit)
     }
 
     fn delete_all(&self, sql: &str) -> Result<()> {
-        self.0.execute(sql, &[]).map_to_unit()
+        self.0.execute(sql, &[]).map(unit)
     }
 
     pub fn delete_all_lyrics(&self) -> Result<()> {
@@ -305,6 +296,7 @@ impl Connection {
 }
 
 mod sql {
+    pub const SQL_FOREIGN_KEYS_ON: &str = "PRAGMA foreign_keys = ON";
     pub const SQL_BEGIN_TRANSACTION: &str = "BEGIN TRANSACTION";
     pub const SQL_ROLLBACK: &str = "ROLLBACK";
     pub const SQL_COMMIT: &str = "COMMIT";
