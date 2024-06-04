@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use spin_sdk::sqlite::Value;
 use spin_sqlite_connection::SqliteConnection;
 
@@ -21,12 +20,17 @@ fn first<T: Clone>(list: Vec<T>) -> Option<T> {
 
 fn unit<T>(_: T) {}
 
+fn map<T, U, F>(f: F) -> impl Fn(Vec<T>) -> Vec<U>
+where
+    F: Fn(T) -> U + Copy,
+{
+    move |list| list.into_iter().map(f).collect()
+}
 pub struct Connection(SqliteConnection<Error>);
 
 impl Connection {
     pub fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {
-        let connection =
-            SqliteConnection::try_open_default(migrations).map(Self)?;
+        let connection = SqliteConnection::try_open_default(migrations).map(Self)?;
         message::db_connection_established();
         connection.0.execute(sql::SQL_FOREIGN_KEYS_ON, &[])?;
         Ok(connection)
@@ -70,19 +74,13 @@ impl Connection {
         self.0.query::<Lyric>(sql::SQL_SELECT_LYRIC_LIST, &[])
     }
 
-    pub fn select_lyric_by_id<D>(&self, id: D) -> Result<Option<Lyric>>
-    where
-        D: Display,
-    {
+    pub fn select_lyric_by_id(&self, id: &str) -> Result<Option<Lyric>> {
         self.0
             .query::<Lyric>(sql::SQL_SELECT_LYRIC, &[Value::Text(id.to_string())])
             .map(first)
     }
 
-    pub fn delete_lyric<D>(&self, id: D) -> Result<bool>
-    where
-        D: Display,
-    {
+    pub fn delete_lyric(&self, id: &str) -> Result<bool> {
         self.0
             .execute(sql::SQL_DELETE_LYRIC, &[Value::Text(id.to_string())])
             .map(|c| c > 0)
@@ -107,16 +105,13 @@ impl Connection {
         self.0.execute(sql::SQL_INSERT_LYRIC, params).map(unit)
     }
 
-    fn select_members_by_playlist_id<D>(&self, playlist_id: D) -> Result<Vec<String>>
-    where
-        D: Display,
-    {
+    fn select_members_by_playlist_id(&self, playlist_id: &str) -> Result<Vec<String>> {
         self.0
             .query::<LyricId>(
                 sql::SQL_SELECT_MEMBER_LYRICS,
                 &[Value::Text(playlist_id.to_string())],
             )
-            .map(|id_list| id_list.into_iter().map(|lyric_id| lyric_id.id()).collect())
+            .map(map::<LyricId, _, _>(|lid| lid.0))
     }
 
     pub fn select_playlist(&self) -> Result<Vec<Playlist>> {
@@ -126,7 +121,7 @@ impl Connection {
                 playlists
                     .into_iter()
                     .map(|mut playlist| {
-                        self.select_members_by_playlist_id(playlist.id.clone())
+                        self.select_members_by_playlist_id(&playlist.id)
                             .map(|members| {
                                 playlist.members = members;
                                 playlist
@@ -136,10 +131,7 @@ impl Connection {
             })
     }
 
-    pub fn select_playlist_by_id<D>(&self, id: D) -> Result<Option<Playlist>>
-    where
-        D: Display,
-    {
+    pub fn select_playlist_by_id(&self, id: &str) -> Result<Option<Playlist>> {
         self.0
             .query::<Playlist>(sql::SQL_GET_PLAYLIST, &[Value::Text(id.to_string())])
             .map(first)
@@ -155,10 +147,7 @@ impl Connection {
             })
     }
 
-    pub fn delete_playlist_by_id<D>(&self, id: D) -> Result<()>
-    where
-        D: Display,
-    {
+    pub fn delete_playlist_by_id(&self, id: &str) -> Result<()> {
         self.0
             .execute(sql::SQL_DELETE_PLAYLIST, &[Value::Text(id.to_string())])
             .map(unit)
@@ -340,7 +329,7 @@ mod sql {
 
 #[cfg(test)]
 mod test {
-    use std::{env, thread, time::Duration};
+    use std::{thread, time::Duration};
 
     use model::{error::Error, Db, Lyric, Playlist, TryFromJson, Uuid};
     use spin_sdk::sqlite::Row;
@@ -349,24 +338,24 @@ mod test {
 
     const MIGRATIONS: &str = include_str!("../migrations.sql");
 
-    fn open_database() -> super::Connection {
+    fn open() -> super::Connection {
         Connection::try_open_default(Some(MIGRATIONS)).unwrap()
     }
 
     #[test]
     fn test_open_database() {
-        open_database();
+        open();
     }
 
     #[test]
     fn insert_lyric() {
-        let connection = open_database();
+        let connection = open();
 
         let id = Uuid::default().to_string();
         let mut lyric = Lyric::new(id.clone(), "Zie maar hoe je het doet".to_owned(), vec![]);
         connection.insert_lyric(&lyric).unwrap();
 
-        let stored_lyric = connection.select_lyric_by_id(id.clone()).unwrap().unwrap();
+        let stored_lyric = connection.select_lyric_by_id(&id).unwrap().unwrap();
         assert!(stored_lyric.created.is_some());
         assert!(stored_lyric.modified.is_some());
         assert!(stored_lyric.etag.is_some());
@@ -374,7 +363,7 @@ mod test {
         "Hallo allemaal".clone_into(&mut lyric.title);
         thread::sleep(Duration::from_millis(5));
         if connection.update_lyric(&lyric).unwrap() {
-            let lyric = connection.select_lyric_by_id(id.clone()).unwrap().unwrap();
+            let lyric = connection.select_lyric_by_id(&id).unwrap().unwrap();
             println!("created: {}", lyric.created.unwrap());
             println!("modified: {}", lyric.modified.unwrap());
         };
@@ -382,7 +371,7 @@ mod test {
 
     #[test]
     fn insert_playlist() {
-        let connection = open_database();
+        let connection = open();
 
         let lyric_id = Uuid::default().to_string();
         let lyric = Lyric::new(
@@ -406,17 +395,17 @@ mod test {
         connection.insert_playlist(&playlist, false).unwrap();
 
         let stored_playlist = connection
-            .select_playlist_by_id(playlist_id.clone())
+            .select_playlist_by_id(&playlist_id)
             .unwrap()
             .unwrap();
         assert!(stored_playlist.created.is_some());
         assert!(stored_playlist.modified.is_some());
         assert!(stored_playlist.etag.is_some());
 
-        connection.delete_lyric(lyric_id.clone()).unwrap();
+        connection.delete_lyric(&lyric_id).unwrap();
 
         let without_lyric = connection
-            .select_playlist_by_id(playlist_id.clone())
+            .select_playlist_by_id(&playlist_id)
             .unwrap()
             .unwrap();
         assert!(without_lyric.members.is_empty());
@@ -424,7 +413,7 @@ mod test {
 
     #[test]
     fn show_tables() {
-        let connection = open_database();
+        let connection = open();
 
         struct Table {
             name: String,
@@ -468,7 +457,7 @@ mod test {
 
     #[test]
     fn import_db() {
-        let connection = open_database();
+        let connection = open();
 
         let db = Db::try_from_json(include_bytes!("../data/db.json")).unwrap();
         connection.replace_db(&db).unwrap();
@@ -482,9 +471,8 @@ mod test {
 
     #[test]
     fn valid_user() {
-        let connection = open_database();
-        let username = env::var("LIPL_USERNAME").unwrap();
-        let is_valid = connection.is_valid_user(&username, "password").unwrap();
+        let connection = open();
+        let is_valid = connection.is_valid_user("paul", "password").unwrap();
         assert!(is_valid);
     }
 }

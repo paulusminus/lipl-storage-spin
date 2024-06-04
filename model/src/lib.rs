@@ -184,13 +184,7 @@ impl TryFrom<spin_sdk::sqlite::Row<'_>> for Playlist {
     }
 }
 
-pub struct LyricId(String);
-
-impl LyricId {
-    pub fn id(&self) -> String {
-        self.0.clone()
-    }
-}
+pub struct LyricId(pub String);
 
 impl TryFrom<spin_sdk::sqlite::Row<'_>> for LyricId {
     type Error = Error;
