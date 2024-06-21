@@ -12,8 +12,10 @@ where
 impl<E: From<Error>> SqliteConnection<E> {
     pub fn try_open_default(migrations: Option<&str>) -> Result<Self, E> {
         let connection = spin_sdk::sqlite::Connection::open_default()?;
-        if migrations.is_some() {
-            unimplemented!();
+        if let Some(statements) = migrations {
+            for statement in statements.split('\n').map(|line| line.trim()) {
+                connection.execute(statement, &[])?;
+            }
         }
         Ok(Self {
             inner: connection,
