@@ -1,11 +1,31 @@
 use std::{
     io::{BufRead, BufReader, Error, Read},
+    iter::once,
+    ops::Add,
     str::FromStr,
 };
 
 type Result<T> = std::result::Result<T, std::io::Error>;
 
+#[derive(Debug, PartialEq)]
 pub struct Parts(Vec<Vec<String>>);
+
+impl Default for Parts {
+    fn default() -> Self {
+        vec![].into()
+    }
+}
+
+impl Add<Vec<String>> for Parts {
+    type Output = Parts;
+    fn add(self, rhs: Vec<String>) -> Self::Output {
+        self.0
+            .into_iter()
+            .chain(once(rhs))
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
 
 impl From<Vec<Vec<String>>> for Parts {
     fn from(value: Vec<Vec<String>>) -> Self {
@@ -38,19 +58,31 @@ fn is_empty(b: bool) -> impl Fn(&Result<String>) -> bool {
     move |r| r.as_ref().ok().map(|s| s.is_empty()) == Some(b)
 }
 
-fn next_part(lines: impl Iterator<Item = Result<String>>) -> Result<Vec<String>> {
-    lines
-        .map(|line| line.map(|l| l.trim().to_owned()))
-        .skip_while(is_empty(true))
-        .take_while(is_empty(false))
-        .collect::<Result<Vec<String>>>()
-}
-
 impl FromStr for Parts {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        parts_from_reader(s.as_bytes())
+        fn next_part(lines: impl Iterator<Item = Result<String>>) -> Result<Vec<String>> {
+            lines
+                .map(|line| line.map(|l| l.trim().to_owned()))
+                .skip_while(is_empty(true))
+                .take_while(is_empty(false))
+                .collect::<Result<Vec<String>>>()
+        }
+
+        fn parts_from_reader(
+            mut lines: impl Iterator<Item = Result<String>>,
+            parts: Parts,
+        ) -> Result<Parts> {
+            let part = next_part(&mut lines)?;
+            if part.is_empty() {
+                Ok(parts)
+            } else {
+                parts_from_reader(lines, parts + part)
+            }
+        }
+
+        parts_from_reader(lines(s.as_bytes()), Parts::default())
     }
 }
 
@@ -60,43 +92,28 @@ impl std::fmt::Display for Parts {
     }
 }
 
-fn parts_from_reader<R>(r: R) -> Result<Parts>
-where
-    R: Read,
-{
-    let mut lines = lines(r);
-    let mut result = vec![];
-    let mut part = next_part(&mut lines)?;
-    while !part.is_empty() {
-        result.push(part);
-        part = next_part(&mut lines)?;
-    }
-
-    Ok(result.into())
-}
-
 #[cfg(test)]
 mod test {
-    use super::parts_from_reader;
+    use super::Parts;
 
     #[test]
-    fn from_reader() {
+    fn parse_part() {
         let test = "\r  Hallo allema  \t";
         assert_eq!(
-            parts_from_reader(test.as_bytes()).unwrap().parts(),
-            vec![vec!["Hallo allema".to_owned()]]
+            test.parse::<Parts>().unwrap(),
+            Parts::from(vec![vec!["Hallo allema".to_owned()]]),
         );
     }
 
     #[test]
-    fn from_reader2() {
+    fn parse_part2() {
         let test = "\rHallo allema\n \t\nJaJa\r\nNee  \t";
         assert_eq!(
-            parts_from_reader(test.as_bytes()).unwrap().parts(),
-            vec![
+            test.parse::<Parts>().unwrap(),
+            Parts::from(vec![
                 vec!["Hallo allema".to_owned()],
                 vec!["JaJa".to_owned(), "Nee".to_owned()]
-            ]
+            ])
         );
     }
 
@@ -104,7 +121,7 @@ mod test {
     fn sanitize() {
         let test = "\rHallo allema\n \t\nJaJa\r\nNee  \t";
         assert_eq!(
-            parts_from_reader(test.as_bytes()).unwrap().to_text(),
+            test.parse::<Parts>().unwrap().to_text(),
             *"Hallo allema\n\nJaJa\nNee",
         );
     }
