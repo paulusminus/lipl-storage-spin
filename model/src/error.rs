@@ -14,6 +14,7 @@ pub enum AuthenticationError {
     #[error("Unsupported")]
     Unsupported,
 
+    #[cfg(feature = "response")]
     #[error("Decode base64")]
     DecodeBase64(#[from] base64::DecodeError),
 
@@ -32,6 +33,7 @@ pub enum Error {
     #[error("Utf 8 encoding")]
     Utf8(#[from] Utf8Error),
 
+    #[cfg(feature = "response")]
     #[error("Json")]
     Json(#[from] serde_json::Error),
 
