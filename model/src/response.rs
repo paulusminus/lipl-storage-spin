@@ -1,7 +1,7 @@
 use serde::Serialize;
 use spin_sdk::http::{IntoResponse, Request, Response};
 
-use crate::{Etag, ToJson};
+use crate::{basic_authentication::unauthenticated, convert::ToJson, error::Error, Etag};
 
 const NOT_MODIFIED: u16 = 304;
 const NOT_FOUND: u16 = 404;
@@ -29,6 +29,18 @@ pub fn if_none_match(req: &Request) -> Option<String> {
     req.header("If-None-Match")
         .and_then(|h| h.as_str())
         .map(String::from)
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> spin_sdk::http::Response {
+        eprintln!("Error: {}", &self);
+        match self {
+            Self::NotFound => not_found(),
+            Self::Authentication(_) => unauthenticated(),
+            Self::Body => bad_request(),
+            _ => internal_server_error(),
+        }
+    }
 }
 
 pub struct JsonResponse<S: Serialize> {
