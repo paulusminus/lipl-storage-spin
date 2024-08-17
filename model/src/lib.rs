@@ -1,9 +1,5 @@
-use std::{
-    hash::{DefaultHasher, Hash, Hasher},
-    str::FromStr,
-};
+use std::str::FromStr;
 
-use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use chrono::{DateTime, Utc};
 use error::ErrInto;
 use serde::{Deserialize, Serialize};
@@ -21,7 +17,6 @@ pub mod error;
 pub mod parts;
 #[cfg(feature = "response")]
 pub mod response;
-
 
 pub trait Etag {
     fn etag(&self) -> String;
@@ -89,19 +84,7 @@ impl Playlist {
     }
 }
 
-impl<T: Hash> Etag for T {
-    fn etag(&self) -> String {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        let hash = hasher.finish();
-        let bytes = hash.to_le_bytes();
-        STANDARD_NO_PAD.encode(bytes)
-    }
-}
-
-
 pub struct LyricId(pub String);
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaylistPost {

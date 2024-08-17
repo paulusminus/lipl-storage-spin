@@ -5,7 +5,7 @@ use spin_sdk::http::{IntoResponse, Params, Request, Response};
 use model::response::{
     bad_request, created, if_none_match, no_content, not_found, not_modified, JsonResponse,
 };
-use model::{Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, convert::TryFromJson, Uuid};
+use model::{convert::TryFromJson, Db, Etag, Lyric, LyricPost, Playlist, PlaylistPost, Uuid};
 
 use crate::{persistence::Connection, Result};
 

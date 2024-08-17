@@ -75,7 +75,6 @@ pub enum Error {
     Rusqlite(#[from] rusqlite::Error),
 }
 
-
 pub trait ErrInto<T, E> {
     fn err_into(self) -> Result<T, Error>;
 }

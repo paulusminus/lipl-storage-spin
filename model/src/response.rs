@@ -1,5 +1,7 @@
+use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use serde::Serialize;
 use spin_sdk::http::{IntoResponse, Request, Response};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::{basic_authentication::unauthenticated, convert::ToJson, error::Error, Etag};
 
@@ -64,5 +66,15 @@ impl<S: Serialize + Etag> IntoResponse for JsonResponse<S> {
             .header("ETag", self.s.etag())
             .body(body)
             .build()
+    }
+}
+
+impl<T: Hash> Etag for T {
+    fn etag(&self) -> String {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        let hash = hasher.finish();
+        let bytes = hash.to_le_bytes();
+        STANDARD_NO_PAD.encode(bytes)
     }
 }

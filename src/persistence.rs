@@ -331,7 +331,7 @@ mod sql {
 mod test {
     use std::{thread, time::Duration};
 
-    use model::{error::Error, Db, Lyric, Playlist, convert::TryFromJson, Uuid};
+    use model::{convert::TryFromJson, error::Error, Db, Lyric, Playlist, Uuid};
     use spin_sdk::sqlite::Row;
 
     use super::Connection;
