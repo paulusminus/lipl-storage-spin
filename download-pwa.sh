@@ -1,4 +1,4 @@
-#!/usr/bin/fish
+#!/bin/sh
 
 wget https://github.com/paulusminus/lipl-control/releases/latest/download/lipl-pwa.tar.gz
 

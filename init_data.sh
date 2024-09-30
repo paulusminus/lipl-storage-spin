@@ -1,3 +1,3 @@
-#!/usr/bin/bash
+#!/bin/sh
 
 time curl -X POST https://lipl.paulmin.nl/db -u paul -H "Content-Type: application/json" -d @data/db.json
