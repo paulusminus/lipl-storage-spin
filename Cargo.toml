@@ -25,7 +25,7 @@ spin-sqlite-connection = { version = "0.2.1", path = "spin-sqlite-connection" }
 authors = ["paulusminus <info@paulmin.nl>"]
 repository = "https://github.com/paulusminus/lipl-storage-spin"
 edition = "2021"
-version = "0.10.3"
+version = "0.10.4"
 
 [workspace]
-members = [ "spin-sqlite-connection", "model"]
+members = ["spin-sqlite-connection", "model"]
