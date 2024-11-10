@@ -87,9 +87,9 @@ checksum = "9ac0150caa2ae65ca5bd83f25c7de183dea78d4d366469f148435e2acfbad0da"
 
 [[package]]
 name = "cc"
-version = "1.1.36"
+version = "1.1.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baee610e9452a8f6f0a1b6194ec09ff9e2d85dea54432acdae41aa0761c95d70"
+checksum = "40545c26d092346d8a8dab71ee48e7685a7a9cba76e634790c215b41a4a7b4cf"
 dependencies = [
  "shlex",
 ]
@@ -454,7 +454,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "spin-sdk",
- "thiserror 2.0.0",
+ "thiserror 2.0.2",
  "uuid",
 ]
 
@@ -658,9 +658,9 @@ dependencies = [
 
 [[package]]
 name = "spin-executor"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2df1a5e2cc70a628c9ea6914770c234cc4a292218091e6707ae8be68b4a5de76"
+checksum = "7298013c6a0dc3361331cec17c744e45d76df7696d59b87801a9a3f5edbe0f54"
 dependencies = [
  "futures",
  "once_cell",
@@ -669,9 +669,9 @@ dependencies = [
 
 [[package]]
 name = "spin-macro"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef3d03e5a205a641d85ace3af1604b39dba63d3ffe3865a71bda02fb482ae60a"
+checksum = "f3953755ea3415f4c0ecba8c5cdab51f05a5d2480b9bb8f2f42bf5a0ffaf18e6"
 dependencies = [
  "anyhow",
  "bytes",
@@ -682,13 +682,14 @@ dependencies = [
 
 [[package]]
 name = "spin-sdk"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed97f54a15f2d8b1fa15e436d88bacb95a5b379a3e0f8fbd8042eb8696ca048a"
+checksum = "eac0de7538d3986cc989ce3649d50b1d8f50ec46a0c9e62b4a14b911db6fe0de"
 dependencies = [
  "anyhow",
  "async-trait",
  "bytes",
+ "chrono",
  "form_urlencoded",
  "futures",
  "http",
@@ -698,7 +699,7 @@ dependencies = [
  "serde_json",
  "spin-executor",
  "spin-macro",
- "thiserror 1.0.68",
+ "thiserror 1.0.69",
  "wit-bindgen",
 ]
 
@@ -747,27 +748,27 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.68"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02dd99dc800bbb97186339685293e1cc5d9df1f8fae2d0aecd9ff1c77efea892"
+checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
 dependencies = [
- "thiserror-impl 1.0.68",
+ "thiserror-impl 1.0.69",
 ]
 
 [[package]]
 name = "thiserror"
-version = "2.0.0"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15291287e9bff1bc6f9ff3409ed9af665bec7a5fc8ac079ea96be07bca0e2668"
+checksum = "037e29b009aa709f293b974da5cd33b15783c049e07f8435778ce8c4871525d8"
 dependencies = [
- "thiserror-impl 2.0.0",
+ "thiserror-impl 2.0.2",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.68"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7c61ec9a6f64d2793d8a45faba21efbe3ced62a886d44c36a009b2b519b4c7e"
+checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -776,9 +777,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.0"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22efd00f33f93fa62848a7cab956c3d38c8d43095efda1decfc2b3a5dc0b8972"
+checksum = "ea4778c7e8ff768bdb32a58a2349903859fe719a320300d7d4ce8636f19a1e69"
 dependencies = [
  "proc-macro2",
  "quote",
