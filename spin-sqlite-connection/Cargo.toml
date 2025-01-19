@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 name = "spin-sqlite-connection"
 repository = "https://github.com/paulusminus/lipl-storage-spin"
-version = "0.2.1"
+version = "0.2.2"
 
 [dependencies]
 spin-sdk = "3.0.1"
@@ -14,4 +14,4 @@ spin-sdk = "3.0.1"
 cfg_aliases = "0.2.1"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-rusqlite = { version = "0.32.1" }
+rusqlite = { version = "0.33.0" }

@@ -18,8 +18,8 @@ lto = true
 
 [dependencies]
 model = { path = "model/", features = ["response"] }
-spin-sdk = "3.0.1"
-spin-sqlite-connection = { version = "0.2.1", path = "spin-sqlite-connection" }
+spin-sdk = "3.1.0"
+spin-sqlite-connection = { version = "0.2.2", path = "spin-sqlite-connection" }
 
 [workspace.package]
 authors = ["paulusminus <info@paulmin.nl>"]
