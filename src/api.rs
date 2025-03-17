@@ -12,7 +12,7 @@ pub struct Api {
 }
 
 impl Api {
-    pub(crate) fn handle(&self, req: Request) -> Result<impl IntoResponse> {
+    pub(crate) fn handle(&self, req: Request) -> Result<impl IntoResponse + use<>> {
         Ok(self.router.handle(req))
     }
 }

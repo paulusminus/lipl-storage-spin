@@ -6,9 +6,9 @@ use model::{parts::Parts, Db, Lyric, LyricId, Playlist, User, Uuid};
 
 macro_rules! and_then {
     // Base case:
-    ($x:expr) => ($x);
+    ($x:expr_2021) => ($x);
     // `$x` followed by at least one `$y,`
-    ($x:expr, $($y:expr),+) => (
+    ($x:expr_2021, $($y:expr_2021),+) => (
         // Call `find_min!` on the tail `$y`
         $x.and_then(|_| and_then!($($y),+))
     )
