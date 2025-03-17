@@ -86,7 +86,7 @@ fn rusqlite_parameter(parameter: &Value) -> rusqlite::types::Value {
     }
 }
 
-fn rusqlite_parameters(parameters: &[Value]) -> impl Params {
+fn rusqlite_parameters(parameters: &[Value]) -> impl Params + use<> {
     params_from_iter(
         parameters
             .iter()
