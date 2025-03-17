@@ -701,7 +701,7 @@ dependencies = [
 
 [[package]]
 name = "spin-sqlite-connection"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cfg_aliases",
  "rusqlite",
