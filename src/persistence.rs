@@ -1,8 +1,23 @@
 use spin_sdk::sqlite::Value;
 use spin_sqlite_connection::SqliteConnection;
 
-use crate::{message, Error, Result};
-use model::{parts::Parts, Db, Lyric, LyricId, Playlist, User, Uuid};
+use crate::{Error, Result, message};
+use model::{Db, Lyric, LyricId, Playlist, User, Uuid, parts::Parts};
+
+trait RollBackOnError<T> {
+    fn rollback_on_error(self, connection: &Connection) -> Result<T>;
+}
+
+impl<T> RollBackOnError<T> for Result<T> {
+    fn rollback_on_error(self, connection: &Connection) -> Result<T> {
+        self.map_err(|err| {
+            if connection.roll_back().is_err() {
+                message::rollback_failure(&err);
+            }
+            err
+        })
+    }
+}
 
 macro_rules! and_then {
     // Base case:
@@ -120,11 +135,11 @@ impl Connection {
             .and_then(|playlists| {
                 playlists
                     .into_iter()
-                    .map(|mut playlist| {
+                    .map(|playlist| {
                         self.select_members_by_playlist_id(&playlist.id)
-                            .map(|members| {
-                                playlist.members = members;
-                                playlist
+                            .map(|members| Playlist {
+                                members,
+                                ..playlist
                             })
                     })
                     .collect::<Result<Vec<_>>>()
@@ -136,13 +151,14 @@ impl Connection {
             .query::<Playlist>(sql::SQL_GET_PLAYLIST, &[Value::Text(id.to_string())])
             .map(first)
             .and_then(|result| match result {
-                Some(mut playlist) => {
-                    self.select_members_by_playlist_id(&playlist.id)
-                        .map(|members| {
-                            playlist.members = members;
-                            Some(playlist)
+                Some(playlist) => self
+                    .select_members_by_playlist_id(&playlist.id)
+                    .map(|members| {
+                        Some(Playlist {
+                            members,
+                            ..playlist
                         })
-                }
+                    }),
                 None => Ok(None),
             })
     }
@@ -192,11 +208,12 @@ impl Connection {
             self.insert_members(&playlist.id, &playlist.members),
             self.commit()
         )
-        .inspect_err(|error| {
-            if self.roll_back().is_err() {
-                message::rollback_failure(error);
-            }
-        })
+        .rollback_on_error(self)
+        // .inspect_err(|error| {
+        //     if self.roll_back().is_err() {
+        //         message::rollback_failure(error);
+        //     }
+        // })
     }
 
     pub fn insert_playlist(&self, playlist: &Playlist, transact: bool) -> Result<()> {
@@ -216,11 +233,12 @@ impl Connection {
             self.insert_members(&playlist.id, &playlist.members),
             if transact { self.commit() } else { Ok(()) }
         )
-        .inspect_err(|error| {
-            if transact && self.roll_back().is_err() {
-                message::rollback_failure(error);
-            }
-        })
+        .rollback_on_error(self)
+        // .inspect_err(|error| {
+        //     if transact && self.roll_back().is_err() {
+        //         message::rollback_failure(error);
+        //     }
+        // })
     }
 
     pub fn update_lyric_list_etag(&self) -> Result<()> {
@@ -276,11 +294,12 @@ impl Connection {
             self.update_playlist_list_etag(),
             self.commit()
         )
-        .inspect_err(|error| {
-            if self.roll_back().is_err() {
-                message::rollback_failure(error);
-            }
-        })
+        .rollback_on_error(self)
+        // .inspect_err(|error| {
+        //     if self.roll_back().is_err() {
+        //         message::rollback_failure(error);
+        //     }
+        // })
     }
 }
 
@@ -331,7 +350,7 @@ mod sql {
 mod test {
     use std::{thread, time::Duration};
 
-    use model::{convert::TryFromJson, error::Error, Db, Lyric, Playlist, Uuid};
+    use model::{Db, Lyric, Playlist, Uuid, convert::TryFromJson, error::Error};
     use spin_sdk::sqlite::Row;
 
     use super::Connection;
