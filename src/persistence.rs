@@ -10,11 +10,10 @@ trait RollBackOnError<T> {
 
 impl<T> RollBackOnError<T> for Result<T> {
     fn rollback_on_error(self, connection: &Connection) -> Result<T> {
-        self.map_err(|err| {
+        self.inspect_err(|err| {
             if connection.roll_back().is_err() {
-                message::rollback_failure(&err);
+                message::rollback_failure(err);
             }
-            err
         })
     }
 }
