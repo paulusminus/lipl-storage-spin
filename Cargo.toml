@@ -18,7 +18,7 @@ lto = true
 
 [dependencies]
 model = { path = "model/", features = ["response"] }
-spin-sdk = "4.0.0"
+spin-sdk = "5.0.0"
 spin-sqlite-connection = { version = "0.2.2", path = "spin-sqlite-connection" }
 
 [workspace.package]

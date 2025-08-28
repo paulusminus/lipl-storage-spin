@@ -8,7 +8,7 @@ repository = "https://github.com/paulusminus/lipl-storage-spin"
 version = "0.2.3"
 
 [dependencies]
-spin-sdk = "4.0.0"
+spin-sdk = "5.0.0"
 
 [build-dependencies]
 cfg_aliases = "0.2.1"
