@@ -346,14 +346,14 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
+checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
 dependencies = [
  "cfg-if",
  "libc",
  "r-efi",
- "wasi 0.14.7+wasi-0.2.4",
+ "wasip2",
 ]
 
 [[package]]
@@ -863,7 +863,7 @@ checksum = "cde323c004c7d9d68fbccd1dd6caee6330aaefbcb40562587fc0356bd0ea8e5f"
 dependencies = [
  "futures",
  "once_cell",
- "wasi 0.13.1+wasi-0.2.0",
+ "wasi",
 ]
 
 [[package]]
@@ -902,7 +902,7 @@ dependencies = [
  "spin-macro",
  "thiserror 1.0.69",
  "uuid",
- "wasi 0.13.1+wasi-0.2.0",
+ "wasi",
  "wit-bindgen 0.43.0",
 ]
 
@@ -1090,15 +1090,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f43d1c36145feb89a3e61aa0ba3e582d976a8ab77f1474aa0adb80800fe0cf8"
 dependencies = [
  "wit-bindgen-rt 0.24.0",
-]
-
-[[package]]
-name = "wasi"
-version = "0.14.7+wasi-0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "883478de20367e224c0090af9cf5f9fa85bed63a95c1abf3afc5c083ebc06e8c"
-dependencies = [
- "wasip2",
 ]
 
 [[package]]
