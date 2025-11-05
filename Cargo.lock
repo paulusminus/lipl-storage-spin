@@ -857,9 +857,9 @@ dependencies = [
 
 [[package]]
 name = "spin-executor"
-version = "5.1.0"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fa74c56ad71afb64fff0566d7cb313567d0469ba2a75b0af58c323f59b74280"
+checksum = "dd83f9f07676e2a8a1e9eaccd245344a67296712c24828bd69f3d11c127cd59d"
 dependencies = [
  "futures",
  "once_cell",
@@ -868,9 +868,9 @@ dependencies = [
 
 [[package]]
 name = "spin-macro"
-version = "5.1.0"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74edf3aab0f4e24b30e765d10fcdbff69aa2d1906907f3318c5f8a8106daef34"
+checksum = "607df2c3b413f7086fa47a5402daa0d51640ba9b9b8e8955c43a58bd4057d2f4"
 dependencies = [
  "anyhow",
  "bytes",
@@ -881,9 +881,9 @@ dependencies = [
 
 [[package]]
 name = "spin-sdk"
-version = "5.1.0"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5374bed998dc151d3c3a45ffdba3269d9f94ea6cf19f002ff7fc744edb09a5f8"
+checksum = "4952d7c69dbfbeff54d62f0e3b3e14c105b80871d2100557f7b1b1429beffc24"
 dependencies = [
  "anyhow",
  "async-trait",
