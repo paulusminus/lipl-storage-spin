@@ -481,10 +481,10 @@ mod test {
         connection.replace_db(&db).unwrap();
 
         let lyrics = connection.select_lyric().unwrap();
-        assert_eq!(lyrics.len(), 57);
+        assert_eq!(lyrics.len(), 59);
 
         let playlists = connection.select_playlist().unwrap();
-        assert_eq!(playlists.len(), 1);
+        assert_eq!(playlists.len(), 2);
     }
 
     #[test]

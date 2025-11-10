@@ -5,10 +5,10 @@ edition = "2021"
 license = "MIT"
 name = "spin-sqlite-connection"
 repository = "https://github.com/paulusminus/lipl-storage-spin"
-version = "0.2.3"
+version = "0.2.4"
 
 [dependencies]
-spin-sdk = "5.0.0"
+spin-sdk = "5.1.1"
 
 [build-dependencies]
 cfg_aliases = "0.2.1"
