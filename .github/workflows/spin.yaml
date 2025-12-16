@@ -2,10 +2,10 @@ name: spin
 
 on:
   push:
-    tags: [ 'v*.*.*' ]
+    tags: ["v*.*.*"]
 
 env:
-  REGISTRY: docker.io
+  REGISTRY: ghcr.io
 
 jobs:
   spin:
@@ -16,7 +16,7 @@ jobs:
         run: "rustup target add wasm32-wasip1"
       - uses: actions/checkout@v4
       - name: Setup `spin`
-        uses: fermyon/actions/spin/setup@v1
+        uses: spinframework/actions/spin/setup@v1
       - name: Run `spin version`
         run: "spin --version"
       - name: Download Progressive Web App
@@ -27,15 +27,13 @@ jobs:
           rm -rf *
           tar -xzf ../lipl-pwa.tar.gz --no-same-owner --no-same-permissions
           rm ../lipl-pwa.tar.gz
-      - name: Log into Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: build and push
         id: push
-        uses: fermyon/actions/spin/push@v1
+        uses: spinframework/actions/spin/push@v1
         with:
+          registry: ${{ env.REGISTRY }}
+          registry_username: ${{ github.actor }}
+          registry_password: ${{ secrets.GITHUB_TOKEN }}
           registry_reference: "${{ env.REGISTRY }}/${{ github.repository }}:${{ github.ref_name }}"
       - name: echo digest
         run: echo ${{ steps.push.outputs.digest }}
