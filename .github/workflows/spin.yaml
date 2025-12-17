@@ -14,7 +14,7 @@ permissions:
 jobs:
   spin:
     runs-on: ubuntu-latest
-    name: Spin build and push to Docker Hub
+    name: Spin build and push to ghcr.io
     steps:
       - name: Install target wasm-wasi
         run: "rustup target add wasm32-wasip1"
