@@ -44,7 +44,7 @@ impl<E: From<Error>> SqliteConnection<E> {
         let rows = prepared
             .query_map(rusqlite_parameters(parameters), |row| {
                 (0..columns.len())
-                    .map(|i| row.get_ref(i).and_then(spin_sqlite_value))
+                    .map(|i| row.get_ref(i).and_then(|value| spin_sqlite_value(value, i)))
                     .collect::<Result<Vec<_>, _>>()
                     .map(|values| RowResult { values })
             })
@@ -63,7 +63,10 @@ impl<E: From<Error>> SqliteConnection<E> {
     }
 }
 
-fn spin_sqlite_value(value: ValueRef) -> Result<spin_sdk::sqlite::Value, rusqlite::Error> {
+fn spin_sqlite_value(
+    value: ValueRef,
+    column: usize,
+) -> Result<spin_sdk::sqlite::Value, rusqlite::Error> {
     match value {
         ValueRef::Blob(blob) => Ok(Value::Blob(blob.to_vec())),
         ValueRef::Integer(integer) => Ok(Value::Integer(integer)),
@@ -72,7 +75,7 @@ fn spin_sqlite_value(value: ValueRef) -> Result<spin_sdk::sqlite::Value, rusqlit
         ValueRef::Text(text) => from_utf8(text)
             .map(String::from)
             .map(Value::Text)
-            .map_err(Error::Utf8Error),
+            .map_err(|error| rusqlite::Error::Utf8Error(column, error)),
     }
 }
 
