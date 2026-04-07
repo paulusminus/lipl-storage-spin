@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Install target wasm-wasi
         run: "rustup target add wasm32-wasip1"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup `spin`
         uses: fermyon/actions/spin/setup@v1
       - name: Run `spin version`
