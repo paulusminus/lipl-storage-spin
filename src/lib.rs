@@ -36,9 +36,11 @@ async fn handle_lipl_storage_spin(req: Request) -> impl IntoResponse {
     let password = variables::get("lipl_password").await.unwrap();
 
     message::request_received(req.uri().path(), req.method());
+
     if let Some(referer) = header_value(&req, "referer") {
         message::dump_header("referer", referer);
     }
+
     if let Some(referer) = header_value(&req, "host") {
         message::dump_header("host", referer);
     }
