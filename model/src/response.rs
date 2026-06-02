@@ -1,9 +1,12 @@
-use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD};
 use serde::Serialize;
-use spin_sdk::http::{IntoResponse, Request, Response};
+use spin_sdk::{
+    http::{HeaderMap, IntoResponse, Response, StatusCode},
+    wasip3::{http::types::ErrorCode, http_compat::http_into_wasi_response},
+};
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::{basic_authentication::unauthenticated, convert::ToJson, error::Error, Etag};
+use crate::{Etag, basic_authentication::unauthenticated, convert::ToJson, error::Error};
 
 const NOT_MODIFIED: u16 = 304;
 const NOT_FOUND: u16 = 404;
@@ -14,8 +17,11 @@ const INTERNAL_SERVER_ERROR: u16 = 500;
 
 macro_rules! status {
     ($name:ident, $code:expr) => {
-        pub fn $name() -> Response {
-            Response::new($code, ())
+        pub fn $name() -> spin_sdk::wasip3::http::types::Response {
+            StatusCode::from_u16($code)
+                .unwrap()
+                .into_response()
+                .unwrap()
         }
     };
 }
@@ -27,20 +33,26 @@ status!(no_content, NO_CONTENT);
 status!(created, CREATED);
 status!(internal_server_error, INTERNAL_SERVER_ERROR);
 
-pub fn if_none_match(req: &Request) -> Option<String> {
-    req.header("If-None-Match")
-        .and_then(|h| h.as_str())
+pub fn if_none_match(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("If-None-Match")
+        .and_then(|h| h.to_str().ok())
         .map(String::from)
 }
 
 impl IntoResponse for Error {
-    fn into_response(self) -> spin_sdk::http::Response {
+    fn into_response(
+        self,
+    ) -> std::result::Result<
+        spin_sdk::wasip3::http::types::Response,
+        spin_sdk::wasip3::http::types::ErrorCode,
+    > {
         eprintln!("Error: {}", &self);
         match self {
-            Self::NotFound => not_found(),
-            Self::Authentication(_) => unauthenticated(),
-            Self::Body => bad_request(),
-            _ => internal_server_error(),
+            Self::NotFound => Ok(not_found()),
+            Self::Authentication(_) => Ok(unauthenticated()),
+            Self::Body => Ok(bad_request()),
+            _ => Ok(internal_server_error()),
         }
     }
 }
@@ -48,24 +60,29 @@ impl IntoResponse for Error {
 pub struct JsonResponse<S: Serialize> {
     s: S,
     #[allow(dead_code)]
-    request: Request,
+    headers: HeaderMap,
 }
 
 impl<S: Serialize + Etag> JsonResponse<S> {
-    pub fn new(s: S, request: Request) -> Self {
-        Self { s, request }
+    pub fn new(s: S, headers: HeaderMap) -> Self {
+        Self { s, headers }
     }
 }
 
 impl<S: Serialize + Etag> IntoResponse for JsonResponse<S> {
-    fn into_response(self) -> Response {
+    fn into_response(
+        self,
+    ) -> std::result::Result<spin_sdk::wasip3::http::types::Response, ErrorCode> {
         let body = self.s.to_json().unwrap();
-        Response::builder()
+
+        let response = Response::builder()
             .status(200)
             .header("Content-Type", "application/json")
             .header("ETag", self.s.etag())
             .body(body)
-            .build()
+            .map_err(|e| ErrorCode::InternalError(Some(e.to_string())))?;
+
+        http_into_wasi_response(response)
     }
 }
 

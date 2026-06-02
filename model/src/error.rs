@@ -1,5 +1,8 @@
 use std::{num::ParseIntError, str::Utf8Error};
 
+use axum_core::response::IntoResponse;
+use spin_sdk::http::StatusCode;
+
 #[derive(Debug, thiserror::Error)]
 pub enum AuthenticationError {
     #[error("Username")]
@@ -20,6 +23,9 @@ pub enum AuthenticationError {
 
     #[error("Utf8: {0}")]
     Utf8(#[from] Utf8Error),
+
+    #[error("Http: {0}")]
+    Http(#[from] spin_sdk::http::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -75,6 +81,15 @@ pub enum Error {
     #[cfg(not(target_family = "wasm"))]
     #[error("Rusqlite: {0}")]
     Rusqlite(#[from] rusqlite::Error),
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum_core::response::Response {
+        match self {
+            Error::Authentication(_) => StatusCode::UNAUTHORIZED.into_response(),
+            _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    }
 }
 
 pub trait ErrInto<T, E> {

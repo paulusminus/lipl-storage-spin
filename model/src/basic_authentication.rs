@@ -1,15 +1,20 @@
 use std::str::from_utf8;
 
-use base64::{prelude::BASE64_STANDARD, Engine};
-use spin_sdk::http::{IntoResponse, Response, ResponseBuilder};
+use base64::{Engine, prelude::BASE64_STANDARD};
+use spin_sdk::{
+    http::{Response, StatusCode},
+    wasip3::http_compat::http_into_wasi_response,
+};
 
 use crate::error::AuthenticationError;
 
-pub fn unauthenticated() -> Response {
-    ResponseBuilder::new(401)
+pub fn unauthenticated() -> spin_sdk::wasip3::http::types::Response {
+    let response = Response::builder()
+        .status(StatusCode::UNAUTHORIZED)
         .header("WWW-Authenticate", "Basic realm=\"Lipl Api\"")
-        .build()
-        .into_response()
+        .body(String::new())
+        .unwrap();
+    http_into_wasi_response(response).unwrap()
 }
 
 #[derive(Debug)]
@@ -70,7 +75,7 @@ impl std::str::FromStr for Authentication {
 mod test {
     use std::env::var;
 
-    use base64::{engine::general_purpose::STANDARD, Engine};
+    use base64::{Engine, engine::general_purpose::STANDARD};
 
     use crate::basic_authentication::Authentication;
 

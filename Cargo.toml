@@ -17,9 +17,11 @@ strip = true
 lto = true
 
 [dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["json", "macros"] }
 model = { path = "model/", features = ["response"] }
-spin-sdk = "5.0.0"
-spin-sqlite-connection = { version = "0.2.2", path = "spin-sqlite-connection" }
+spin-sdk = "6.0.0"
+spin-sqlite-connection = { version = "0.3.0", path = "spin-sqlite-connection" }
+tower-service = "0.3.3"
 
 [workspace.package]
 authors = ["paulusminus <info@paulmin.nl>"]

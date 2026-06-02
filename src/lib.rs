@@ -1,11 +1,12 @@
-use std::{sync::OnceLock, time::Instant};
-
-use crate::api::Api;
-use model::{error::Error, response::no_content, Uuid};
+use model::{Uuid, error::Error, response::no_content};
 use spin_sdk::{
-    http::{IntoResponse, Request, Response},
-    http_component,
+    http::{IntoResponse, Request},
+    http_service,
 };
+use std::{sync::OnceLock, time::Instant};
+use tower_service::Service;
+
+use crate::api::create_router;
 
 mod api;
 pub mod handler;
@@ -25,15 +26,13 @@ fn now() -> &'static Instant {
 }
 
 fn header_value<'a>(req: &'a Request, name: &'a str) -> Option<&'a str> {
-    req.headers()
-        .find(|header| header.0.to_lowercase() == name)
-        .and_then(|header| header.1.as_str())
+    req.headers().get(name).and_then(|h| h.to_str().ok())
 }
 
 /// A simple Spin HTTP component.
-#[http_component]
-fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
-    message::request_received(req.path(), req.method());
+#[http_service]
+async fn handle_lipl_storage_spin(req: Request) -> impl IntoResponse {
+    message::request_received(req.uri().path(), req.method());
     if let Some(referer) = header_value(&req, "referer") {
         message::dump_header("referer", referer);
     }
@@ -41,13 +40,15 @@ fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
         message::dump_header("host", referer);
     }
 
-    if req.path() == "/lipl/api/v1/health" {
+    if req.uri().path() == "/lipl/api/v1/health" {
         return Ok(no_content());
     }
 
-    let api = Api::default();
-    api.handle(req)
-        .map(|r| r.into_response())
+    create_router()
+        .call(req)
+        .await
+        .map_err(|e| spin_sdk::wasip3::http::types::ErrorCode::InternalError(Some(e.to_string())))
+        .and_then(|r| r.into_response())
         .inspect_err(|error| {
             eprintln!(
                 "{}: Error {} after {} milliseconds",
@@ -60,7 +61,7 @@ fn handle_lipl_storage_spin(req: Request) -> Result<Response> {
             println!(
                 "{}: Success {} after {} milliseconds",
                 request_id(),
-                x.status(),
+                x.get_status_code(),
                 now().elapsed().as_millis()
             );
         })
