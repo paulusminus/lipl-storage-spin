@@ -3,8 +3,9 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
+use tower_http::auth::AddAuthorizationLayer;
 
-pub fn create_router() -> Router {
+pub fn create_router(username: &str, password: &str) -> Router {
     Router::new()
         .route("/lipl/api/v1/lyric", get(handler::get_lyric_list))
         .route("/lipl/api/v1/lyric/{id}", get(handler::get_lyric))
@@ -23,4 +24,5 @@ pub fn create_router() -> Router {
         .route("/lipl/api/v1/db", post(handler::replace_db))
         .route("/lipl/api/v1/uuid/{id}", get(handler::get_uuid))
         .route("/lipl/api/v1/user", get(handler::get_user_list))
+        .layer(AddAuthorizationLayer::basic(username, password))
 }

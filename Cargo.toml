@@ -22,6 +22,7 @@ model = { path = "model/", features = ["response"] }
 spin-sdk = "6.0.0"
 spin-sqlite-connection = { version = "0.3.0", path = "spin-sqlite-connection" }
 tower-service = "0.3.3"
+tower-http = { version = "0.6.11", features = ["auth"] }
 
 [workspace.package]
 authors = ["paulusminus <info@paulmin.nl>"]

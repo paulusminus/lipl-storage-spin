@@ -1,7 +1,7 @@
 use model::{Uuid, error::Error, response::no_content};
 use spin_sdk::{
     http::{IntoResponse, Request},
-    http_service,
+    http_service, variables,
 };
 use std::{sync::OnceLock, time::Instant};
 use tower_service::Service;
@@ -32,6 +32,9 @@ fn header_value<'a>(req: &'a Request, name: &'a str) -> Option<&'a str> {
 /// A simple Spin HTTP component.
 #[http_service]
 async fn handle_lipl_storage_spin(req: Request) -> impl IntoResponse {
+    let username = variables::get("lipl_username").await.unwrap();
+    let password = variables::get("lipl_password").await.unwrap();
+
     message::request_received(req.uri().path(), req.method());
     if let Some(referer) = header_value(&req, "referer") {
         message::dump_header("referer", referer);
@@ -44,7 +47,7 @@ async fn handle_lipl_storage_spin(req: Request) -> impl IntoResponse {
         return Ok(no_content());
     }
 
-    create_router()
+    create_router(&username, &password)
         .call(req)
         .await
         .map_err(|e| spin_sdk::wasip3::http::types::ErrorCode::InternalError(Some(e.to_string())))

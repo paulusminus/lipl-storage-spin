@@ -1,6 +1,6 @@
 use std::{num::ParseIntError, str::Utf8Error};
 
-use axum_core::response::IntoResponse;
+use axum_core::{body::Body, response::IntoResponse};
 use spin_sdk::http::StatusCode;
 
 #[derive(Debug, thiserror::Error)]
@@ -86,8 +86,39 @@ pub enum Error {
 impl IntoResponse for Error {
     fn into_response(self) -> axum_core::response::Response {
         match self {
-            Error::Authentication(_) => StatusCode::UNAUTHORIZED.into_response(),
-            _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            Error::Authentication(_) => axum_core::response::Response::builder()
+                .status(401)
+                .header("WWW-Authenticate", "Basic realm=\"Lipl Api\"")
+                .body(Body::empty())
+                .unwrap(),
+            Error::Base58Decode(e) => {
+                println!("{}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+            Error::Chrono(e) => {
+                println!("{}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+            Error::Json(e) => {
+                println!("{}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+            Error::Column(e) => {
+                println!("{}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+            Error::ParseInt(e) => {
+                println!("{}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+            Error::SpinSQLite(e) => {
+                println!("{}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+            _ => {
+                println!("Unknown error");
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
         }
     }
 }
