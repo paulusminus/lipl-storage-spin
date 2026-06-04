@@ -29,9 +29,7 @@ impl<E: From<Error>> SqliteConnection<E> {
     {
         let query_result = self.query_result(sql, parameters).await?;
         let rows = query_result.collect().await?;
-        rows.into_iter()
-            .map(T::try_from)
-            .collect::<Result<Vec<T>, E>>()
+        rows.into_iter().map(T::try_from).collect()
     }
 
     async fn query_result<S>(&self, sql: S, parameters: Vec<Value>) -> Result<QueryResult, E>
@@ -44,20 +42,11 @@ impl<E: From<Error>> SqliteConnection<E> {
             .map_err(E::from)
     }
 
-    pub async fn execute<S>(&self, sql: S, parameters: Vec<Value>) -> Result<i64, E>
+    pub async fn execute<S>(&self, sql: S, parameters: Vec<Value>) -> Result<u64, E>
     where
         S: AsRef<str>,
     {
         self.inner.execute(sql.as_ref(), parameters).await?;
-        let changes = self.inner.execute("SELECT changes()", []).await?;
-        let rows = changes.collect().await?;
-        let row = rows
-            .first()
-            .cloned()
-            .ok_or(Error::Io("changes() has no rows".to_owned()))?;
-        let count = row
-            .get::<i64>(0)
-            .ok_or(Error::Io("Column changes() missing".to_owned()))?;
-        Ok(count)
+        Ok(self.inner.changes().await)
     }
 }

@@ -7,7 +7,7 @@ repository.workspace = true
 version.workspace = true
 
 [features]
-response = ["dep:spin-sdk", "dep:base64", "dep:serde_json"]
+response = ["dep:spin-sdk", "dep:base64"]
 
 [dependencies]
 axum-core = "0.5.6"
@@ -15,7 +15,6 @@ base64 = { version = "0.22.1", optional = true }
 bs58 = "0.5.1"
 chrono = "0.4.42"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.145", optional = true }
 serde_with = { version = "3.15.1", default-features = false, features = [
     "macros",
 ] }

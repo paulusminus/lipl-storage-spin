@@ -1,4 +1,5 @@
-use model::{Uuid, error::Error, response::no_content};
+use axum::http::StatusCode;
+use model::{Uuid, error::Error};
 use spin_sdk::{
     http::{IntoResponse, Request},
     http_service, variables,
@@ -46,7 +47,7 @@ async fn handle_lipl_storage_spin(req: Request) -> impl IntoResponse {
     }
 
     if req.uri().path() == "/lipl/api/v1/health" {
-        return Ok(no_content());
+        return StatusCode::NO_CONTENT.into_response();
     }
 
     create_router(&username, &password)

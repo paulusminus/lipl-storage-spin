@@ -1,7 +1,6 @@
-use std::{num::ParseIntError, str::Utf8Error};
-
 use axum_core::{body::Body, response::IntoResponse};
 use spin_sdk::http::StatusCode;
+use std::{num::ParseIntError, str::Utf8Error};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthenticationError {
@@ -39,10 +38,6 @@ pub enum Error {
     #[error("Utf 8 encoding")]
     Utf8(#[from] Utf8Error),
 
-    #[cfg(feature = "response")]
-    #[error("Json")]
-    Json(#[from] serde_json::Error),
-
     #[error("Column {0}")]
     Column(String),
 
@@ -77,10 +72,6 @@ pub enum Error {
     #[cfg(feature = "response")]
     #[error("Spin SQLite: {0}")]
     SpinSQLite(#[from] spin_sdk::sqlite::Error),
-
-    #[cfg(not(target_family = "wasm"))]
-    #[error("Rusqlite: {0}")]
-    Rusqlite(#[from] rusqlite::Error),
 }
 
 impl IntoResponse for Error {
@@ -96,10 +87,6 @@ impl IntoResponse for Error {
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
             Error::Chrono(e) => {
-                println!("{}", e);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
-            Error::Json(e) => {
                 println!("{}", e);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

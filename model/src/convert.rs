@@ -1,53 +1,29 @@
-use chrono::{DateTime, Utc};
-use serde::{Serialize, de::DeserializeOwned};
-
 use crate::{Error, Lyric, LyricId, Playlist, Result, User, Uuid, error::ErrInto, parts::Parts};
-
-pub trait TryFromJson {
-    fn try_from_json<U: AsRef<[u8]>>(slice: U) -> Result<Self>
-    where
-        Self: Sized;
-}
-
-pub trait ToJson {
-    fn to_json(&self) -> Result<String>;
-}
-
-impl<S: Serialize> ToJson for S {
-    fn to_json(&self) -> Result<String> {
-        serde_json::to_string(self).err_into()
-    }
-}
-
-impl<T: DeserializeOwned> TryFromJson for T {
-    fn try_from_json<U: AsRef<[u8]>>(slice: U) -> Result<T>
-    where
-        Self: Sized,
-    {
-        serde_json::from_slice(slice.as_ref()).err_into()
-    }
-}
+use chrono::{DateTime, Utc};
 
 pub trait RowExt {
-    fn column(&self, column_index: usize) -> Result<&str>;
+    fn column(&self, column_index: usize, column_name: &str) -> Result<String>;
 }
 
 impl RowExt for spin_sdk::sqlite::RowResult {
-    fn column(&self, column_index: usize) -> Result<&str> {
+    fn column(&self, column_index: usize, column_name: &str) -> Result<String> {
         self.get::<&str>(column_index)
-            .ok_or(Error::Column(column_index.to_string()))
+            .map(String::from)
+            .ok_or(Error::Column(format!(
+                "Problem converting value in column {column_name}"
+            )))
     }
 }
 
-fn to_datetime(s: &str) -> Result<DateTime<Utc>> {
+fn to_datetime(s: String) -> Result<DateTime<Utc>> {
     s.parse::<DateTime<Utc>>().err_into()
 }
 
-fn to_uuid(s: &str) -> Result<Uuid> {
+fn to_uuid(s: String) -> Result<Uuid> {
     s.parse::<Uuid>().err_into()
 }
 
-fn to_parts(s: &str) -> Result<Vec<Vec<String>>> {
+fn to_parts(s: String) -> Result<Vec<Vec<String>>> {
     s.parse::<Parts>().err_into().map(|p| p.parts())
 }
 
@@ -56,33 +32,18 @@ impl TryFrom<spin_sdk::sqlite::RowResult> for Lyric {
 
     fn try_from(row: spin_sdk::sqlite::RowResult) -> Result<Self> {
         Ok(Self {
-            id: row
-                .get::<&str>(0)
-                .ok_or(crate::error::Error::MissingColumn("id"))
-                .map(Into::into)?,
-            title: row
-                .get::<&str>(1)
-                .ok_or(crate::error::Error::MissingColumn("title"))
-                .map(Into::into)?,
-            parts: row
-                .get::<&str>(2)
-                .ok_or(crate::error::Error::MissingColumn("parts"))
-                .and_then(to_parts)?,
+            id: row.column(0, "id")?,
+            title: row.column(1, "title")?,
+            parts: row.column(2, "parts").and_then(to_parts)?,
             created: row
-                .get::<&str>(3)
-                .ok_or(crate::error::Error::MissingColumn("created"))
+                .column(3, "created")
                 .and_then(to_datetime)
                 .map(Into::into)?,
             modified: row
-                .get::<&str>(4)
-                .ok_or(crate::error::Error::MissingColumn("modified"))
+                .column(4, "modified")
                 .and_then(to_datetime)
                 .map(Into::into)?,
-            etag: row
-                .get::<&str>(5)
-                .ok_or(crate::error::Error::MissingColumn("etag"))
-                .and_then(to_uuid)
-                .map(Into::into)?,
+            etag: row.column(5, "etag").and_then(to_uuid).map(Into::into)?,
         })
     }
 }
@@ -92,30 +53,18 @@ impl TryFrom<spin_sdk::sqlite::RowResult> for Playlist {
 
     fn try_from(row: spin_sdk::sqlite::RowResult) -> Result<Self> {
         Ok(Self {
-            id: row
-                .get::<&str>(0)
-                .ok_or(crate::error::Error::MissingColumn("id"))
-                .map(Into::into)?,
-            title: row
-                .get::<&str>(1)
-                .ok_or(crate::error::Error::MissingColumn("title"))
-                .map(Into::into)?,
+            id: row.column(0, "id")?,
+            title: row.column(1, "title")?,
             members: vec![],
             created: row
-                .get::<&str>(2)
-                .ok_or(crate::error::Error::MissingColumn("created"))
+                .column(2, "created")
                 .and_then(to_datetime)
                 .map(Into::into)?,
             modified: row
-                .get::<&str>(3)
-                .ok_or(crate::error::Error::MissingColumn("modified"))
+                .column(3, "created")
                 .and_then(to_datetime)
                 .map(Into::into)?,
-            etag: row
-                .get::<&str>(4)
-                .ok_or(crate::error::Error::MissingColumn("etag"))
-                .and_then(to_uuid)
-                .map(Into::into)?,
+            etag: row.column(4, "etag").and_then(to_uuid).map(Into::into)?,
         })
     }
 }
@@ -124,10 +73,7 @@ impl TryFrom<spin_sdk::sqlite::RowResult> for LyricId {
     type Error = Error;
 
     fn try_from(row: spin_sdk::sqlite::RowResult) -> Result<Self> {
-        row.get::<&str>(0)
-            .ok_or(crate::error::Error::MissingColumn("id"))
-            .map(String::from)
-            .map(LyricId)
+        row.column(0, "id").map(LyricId)
     }
 }
 
@@ -136,18 +82,9 @@ impl TryFrom<spin_sdk::sqlite::RowResult> for User {
 
     fn try_from(row: spin_sdk::sqlite::RowResult) -> Result<Self> {
         Ok(Self {
-            id: row
-                .get::<&str>(0)
-                .ok_or(crate::error::Error::MissingColumn("id"))
-                .map(Into::into)?,
-            name: row
-                .get::<&str>(1)
-                .ok_or(crate::error::Error::MissingColumn("name"))
-                .map(Into::into)?,
-            password: row
-                .get::<&str>(2)
-                .ok_or(crate::error::Error::MissingColumn("password"))
-                .map(Into::into)?,
+            id: row.column(0, "id")?,
+            name: row.column(1, "name")?,
+            password: row.column(2, "password")?,
         })
     }
 }
