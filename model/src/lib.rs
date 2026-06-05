@@ -10,8 +10,6 @@ use crate::error::Error;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[cfg(feature = "response")]
-pub mod basic_authentication;
-#[cfg(feature = "response")]
 pub mod convert;
 pub mod error;
 pub mod parts;
@@ -22,7 +20,7 @@ pub trait Etag {
     fn etag(&self) -> String;
 }
 
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize, PartialEq, Eq)]
 pub struct Lyric {
     pub id: String,
     pub title: String,
@@ -52,13 +50,13 @@ pub struct List<T> {
     pub inner: Vec<T>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LyricPost {
     pub title: String,
     pub parts: Vec<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize, PartialEq, Eq)]
 pub struct Playlist {
     pub id: String,
     pub title: String,
@@ -86,13 +84,13 @@ impl Playlist {
 
 pub struct LyricId(pub String);
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct PlaylistPost {
     pub title: String,
     pub members: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize, PartialEq, Eq)]
 pub struct User {
     pub id: String,
     pub name: String,
@@ -106,13 +104,13 @@ impl std::fmt::Display for User {
     }
 }
 
-#[derive(Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize, PartialEq, Eq)]
 pub struct Db {
     pub lyrics: Vec<Lyric>,
     pub playlists: Vec<Playlist>,
 }
 
-#[derive(Clone, Debug, DeserializeFromStr, Hash, SerializeDisplay, PartialEq)]
+#[derive(Clone, Debug, DeserializeFromStr, Hash, SerializeDisplay, PartialEq, Eq)]
 pub struct Uuid {
     inner: uuid::Uuid,
 }
@@ -140,7 +138,7 @@ impl FromStr for Uuid {
 impl Default for Uuid {
     fn default() -> Self {
         Self {
-            inner: uuid::Uuid::new_v4(),
+            inner: uuid::Uuid::now_v7(),
         }
     }
 }
