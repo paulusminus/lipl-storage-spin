@@ -1,8 +1,10 @@
 use spin_sdk::{sqlite::Value, wit_bindgen::block_on};
 use spin_sqlite_connection::SqliteConnection;
 
-use crate::{Error, Result, message};
-use model::{Db, Lyric, LyricId, Playlist, User, Uuid, parts::Parts};
+use super::message;
+use model::{error::Error, parts::Parts, Db, Lyric, LyricId, Playlist, User, Uuid};
+
+type Result<T> = std::result::Result<T, Error>;
 
 trait RollBackOnError<T> {
     fn rollback_on_error(self, connection: &Connection) -> Result<T>;

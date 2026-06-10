@@ -104,7 +104,7 @@ impl std::fmt::Display for User {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Hash, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Deserialize, Hash, Serialize, PartialEq, Eq)]
 pub struct Db {
     pub lyrics: Vec<Lyric>,
     pub playlists: Vec<Playlist>,

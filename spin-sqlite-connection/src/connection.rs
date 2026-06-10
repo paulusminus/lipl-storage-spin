@@ -49,4 +49,8 @@ impl<E: From<Error>> SqliteConnection<E> {
         self.inner.execute(sql.as_ref(), parameters).await?;
         Ok(self.inner.changes().await)
     }
+
+    pub async fn changes(&self) -> u64 {
+        self.inner.changes().await
+    }
 }
