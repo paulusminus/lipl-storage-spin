@@ -18,9 +18,9 @@ jobs:
     steps:
       - name: Install target wasm-wasi
         run: "rustup target add wasm32-wasip1"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup `spin`
-        uses: fermyon/actions/spin/setup@v1
+        uses: fermyon/actions/spin/setup@v1.0.12
       - name: Run `spin version`
         run: "spin --version"
       - name: Download Progressive Web App
@@ -33,7 +33,7 @@ jobs:
           rm ../lipl-pwa.tar.gz
       - name: build and push
         id: push
-        uses: fermyon/actions/spin/push@v1
+        uses: fermyon/actions/spin/push@v1.0.12
         with:
           registry: ${{ env.REGISTRY }}
           registry_username: ${{ github.actor }}
