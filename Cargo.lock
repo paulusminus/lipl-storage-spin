@@ -597,7 +597,6 @@ dependencies = [
  "spin-sdk",
  "thiserror",
  "uuid",
- "wasip3",
 ]
 
 [[package]]
@@ -841,8 +840,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "spin-macro"
 version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11e483b94d5bcfac493caf0427fa875063e3e8604d0466a4ab491ec200a42857"
+source = "git+https://github.com/spinframework/spin-rust-sdk#f0c4aeb2c2c44804906a9bc818397050b45c622d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -852,8 +850,7 @@ dependencies = [
 [[package]]
 name = "spin-sdk"
 version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fd2abac3eb2ee249c2241ab87f7b1287f36172c8cc1ea815c19c85e41ede44d"
+source = "git+https://github.com/spinframework/spin-rust-sdk#f0c4aeb2c2c44804906a9bc818397050b45c622d"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1065,9 +1062,9 @@ dependencies = [
 
 [[package]]
 name = "wasip3"
-version = "0.6.0+wasi-0.3.0-rc-2026-03-15"
+version = "0.7.0+wasi-0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed83456dd6a0b8581998c0365e4651fa2997e5093b49243b7f35391afaa7a3d9"
+checksum = "07aa681120704bf09828d1f7cf7e763666c1dc6a36e5096efd0ad9aadfb302d3"
 dependencies = [
  "bytes",
  "http",

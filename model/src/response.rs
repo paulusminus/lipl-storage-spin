@@ -1,7 +1,7 @@
 use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD};
 use spin_sdk::{
     http::{HeaderMap, IntoResponse, StatusCode},
-    wasip3::http_compat::http_into_wasi_response,
+    wasip3::{self, http_compat::http_into_wasi_response},
 };
 use std::hash::{DefaultHasher, Hash, Hasher};
 

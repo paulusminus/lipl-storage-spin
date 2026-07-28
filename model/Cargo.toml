@@ -19,7 +19,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_with = { version = "3.15.1", default-features = false, features = [
     "macros",
 ] }
-spin-sdk = { version = "6.0.0", default-features = false, features = ["http", "sqlite", "variables"], optional = true }
+spin-sdk = { git = "https://github.com/spinframework/spin-rust-sdk", default-features = false, features = ["http", "sqlite", "variables"], optional = true }
 thiserror = "2.0.17"
 uuid = { version = "1.18.1", features = ["v7", "js"] }
-wasip3 = { version = "0.6.0", features = ["http-compat"] }
+# wasip3 = { version = "0.7.0", features = ["http-compat"] }
