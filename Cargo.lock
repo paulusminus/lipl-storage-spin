@@ -840,7 +840,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "spin-macro"
 version = "6.0.0"
-source = "git+https://github.com/spinframework/spin-rust-sdk#efc7f747d880af2f7dad9cf2003c9a54d79a5b27"
+source = "git+https://github.com/spinframework/spin-rust-sdk?rev=706267f#706267f6d124a2383d05fed18466d07927c772f4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -850,7 +850,7 @@ dependencies = [
 [[package]]
 name = "spin-sdk"
 version = "6.0.0"
-source = "git+https://github.com/spinframework/spin-rust-sdk#efc7f747d880af2f7dad9cf2003c9a54d79a5b27"
+source = "git+https://github.com/spinframework/spin-rust-sdk?rev=706267f#706267f6d124a2383d05fed18466d07927c772f4"
 dependencies = [
  "anyhow",
  "bytes",
