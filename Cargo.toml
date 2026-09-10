@@ -19,7 +19,7 @@ lto = true
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["json", "macros"] }
 model = { path = "model/", features = ["response"] }
-spin-sdk = { git = "https://github.com/spinframework/spin-rust-sdk", rev = "706267f" }
+spin-sdk = { version = "7.0.0" }
 spin-sqlite-connection = { version = "0.3.0", path = "spin-sqlite-connection" }
 tower-service = "0.3.3"
 tower-http = { version = "0.7.0", features = ["auth"] }

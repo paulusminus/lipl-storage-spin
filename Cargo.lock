@@ -839,8 +839,9 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "spin-macro"
-version = "6.0.0"
-source = "git+https://github.com/spinframework/spin-rust-sdk?rev=706267f#706267f6d124a2383d05fed18466d07927c772f4"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac8a641da857d4e7cada31a853c40180eeb10485a0f2f0282d0a7e5a2a4105d4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -849,8 +850,9 @@ dependencies = [
 
 [[package]]
 name = "spin-sdk"
-version = "6.0.0"
-source = "git+https://github.com/spinframework/spin-rust-sdk?rev=706267f#706267f6d124a2383d05fed18466d07927c772f4"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b7a3d9a6805ccdb4d404e91ccf7198ac5e486b6199dc9387aeebaa368272112"
 dependencies = [
  "anyhow",
  "bytes",
