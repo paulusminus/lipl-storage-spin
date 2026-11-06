@@ -8,7 +8,7 @@ repository = "https://github.com/paulusminus/lipl-storage-spin"
 version = "0.3.0"
 
 [dependencies]
-spin-sdk = { version = "7.0.0" }
+spin-sdk = { version = "8.0.0" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 turso = "0.8.3"
