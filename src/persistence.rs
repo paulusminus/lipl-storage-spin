@@ -2,7 +2,7 @@ use spin_sdk::{sqlite::Value, wit_bindgen::block_on};
 use spin_sqlite_connection::SqliteConnection;
 
 use super::message;
-use model::{error::Error, parts::Parts, Db, Lyric, LyricId, Playlist, User, Uuid};
+use model::{Db, Lyric, LyricId, Playlist, User, Uuid, error::Error, parts::Parts};
 
 type Result<T> = std::result::Result<T, Error>;
 

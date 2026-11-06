@@ -29,7 +29,7 @@ impl IntoResponse for Error {
         spin_sdk::wasip3::http::types::Response,
         spin_sdk::wasip3::http::types::ErrorCode,
     > {
-        eprintln!("Error: {}", &self);
+        eprintln!("Error: {}", self);
         match self {
             Self::NotFound => StatusCode::NOT_FOUND.into_response(),
             Self::Authentication(_) => http_into_wasi_response(unauthenticated()),
