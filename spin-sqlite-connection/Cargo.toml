@@ -10,5 +10,5 @@ version = "0.3.0"
 [dependencies]
 spin-sdk = { version = "8.0.0" }
 
-[build-dependencies]
-cfg_aliases = "0.2.1"
+# [build-dependencies]
+# cfg_aliases = "0.2.1"
