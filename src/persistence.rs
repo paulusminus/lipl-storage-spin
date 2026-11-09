@@ -4,7 +4,7 @@ use spin_sqlite_connection::SqliteConnection;
 use super::message;
 use model::{Db, Lyric, LyricId, Playlist, User, Uuid, error::Error, parts::Parts};
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, spin_sqlite_connection::Error>;
 
 trait RollBackOnError<T> {
     fn rollback_on_error(self, connection: &Connection) -> Result<T>;
@@ -32,7 +32,7 @@ where
 {
     move |list| list.into_iter().map(f).collect()
 }
-pub struct Connection(SqliteConnection<Error>);
+pub struct Connection(SqliteConnection);
 
 impl Connection {
     pub async fn try_open_default(migrations: Option<&'static str>) -> Result<Self> {

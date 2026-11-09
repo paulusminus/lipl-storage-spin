@@ -14,7 +14,7 @@ pub mod handler;
 mod message;
 pub mod persistence;
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, model::error::Error>;
 
 fn request_id() -> &'static Uuid {
     static REQUEST_ID: OnceLock<Uuid> = OnceLock::new();

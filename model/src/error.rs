@@ -72,6 +72,9 @@ pub enum Error {
     #[cfg(feature = "response")]
     #[error("Spin SQLite: {0}")]
     SpinSQLite(#[from] spin_sdk::sqlite::Error),
+
+    #[error("Spin Sqlite{0}")]
+    Spin(Box<dyn std::error::Error>),
 }
 
 impl IntoResponse for Error {

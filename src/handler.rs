@@ -4,6 +4,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use model::response::if_none_match;
 use model::{Db, Etag, Lyric, LyricPost, Playlist, Uuid};
+use spin_sqlite_connection::Error;
 
 use crate::{Result, persistence::Connection};
 
@@ -131,7 +132,7 @@ pub async fn get_db() -> Result<impl IntoResponse> {
 }
 
 pub async fn get_uuid(Path(id): Path<String>) -> Result<impl IntoResponse> {
-    let uuid = Uuid::from_uuid_str(&id)?;
+    let uuid = Uuid::from_uuid_str(&id).map_err(|e| Error::Model(Box::new(e)))?;
     Ok(Json(uuid.to_string()))
 }
 
